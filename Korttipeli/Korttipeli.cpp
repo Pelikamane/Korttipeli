@@ -182,136 +182,176 @@ int Deck::ValueToInt(std::string value, int score)
 
 void GameManager::BlackJack(Player& player, Dealer& dealer)
 {
-	bool gameoverplayer = false, gameoverdealer = false, gameloop = true;
-	int dealerscore = 0, playerscore = 0, currentcard = 0;
-	int hitorstand, playornot;
-	std::vector<int> playercards;
-	std::vector<int> dealercards;
-
+	bool gameloop = true;
 	Deck deck;
-	deck.ShuffleDeck();
+
 	std::cout << "\nWelcome to Blackjack, time to get robbed.\n";
-	std::cout << "\nDealer's hand:\n";
-	for (int i = 0; i < 2; i++)
+	while (gameloop)
 	{
-		deck[currentcard].PrintCard();
-		dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
-		dealercards.emplace_back(currentcard);
-		currentcard++;
-	}
-	if (dealerscore == 21) //if the dealer gets a blackjack straight away
-	{
-		std::cout << "Blackjack!\n";
-	}
-	std::cout << "Dealer's hand value: " << dealerscore << "\n\n";
+		bool gameoverplayer = false, gameoverdealer = false;
+		int dealerscore = 0, playerscore = 0, currentcard = 0;
+		int hitorstand, playornot;
+		std::vector<int> playercards;
+		std::vector<int> dealercards;
 
-	std::cout << "Your hand:\n";
-	for (int i = 0; i < 2; i++)
-	{
-		deck[currentcard].PrintCard();
-		playerscore += deck.ValueToInt(deck[currentcard].value, playerscore);
-		playercards.emplace_back(currentcard);
-		currentcard++;
-	}
-	std::cout << "Your hand value: " << playerscore << "\n";
-	if (playerscore == 21)
-	{
-		gameoverdealer = true; //Skip hit or stand
-		player.totalblackjacks++;
-		std::cout << "Blackjack!\n";
-
-		while (dealerscore < 21)
+		deck.ShuffleDeck();
+		std::cout << "\nDealer's hand:\n";
+		for (int i = 0; i < 2; i++)
 		{
-			std::cout << "Dealer draws: ";
 			deck[currentcard].PrintCard();
 			dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
 			dealercards.emplace_back(currentcard);
 			currentcard++;
-			std::cout << "Dealer's current hand value: " << dealerscore << "\n\n";
 		}
-		if (dealerscore == 21)
+		if (dealerscore == 21) //if the dealer gets a blackjack straight away
 		{
-			std::cout << "Blackjack for both!\nIt's a draw!!";
-			player.playerblackjackwins++;
-			dealer.dealerblackjackwins++;
+			std::cout << "Blackjack!\n";
 		}
-		if (dealerscore > 21)
-		{
-			std::cout << "Dealer busted, You win!\n";
-			std::cout << "Your final hand:\n";
-			for (int cardindex : playercards)
-			{
-				deck[cardindex].PrintCard();
-			}
-			player.playerblackjackwins++;
-			gameoverdealer = true;
-		}
-	}
+		std::cout << "Dealer's hand value: " << dealerscore << "\n\n";
 
-	while (gameoverplayer == false && gameoverdealer == false)
-	{
-		while (true)
+		std::cout << "Your hand:\n";
+		for (int i = 0; i < 2; i++)
 		{
-			std::cout << "\nHit (1) or stand (2): ";
-			std::cin >> hitorstand;
-			if (std::cin.fail())
-			{
-				std::cin.clear();
-				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-				std::cout << "Not a number\n";
-			}
-			else
-			{
-				if (hitorstand != 1 && hitorstand != 2)
-				{
-					std::cout << "Wrong number\n";
-					continue;
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-		switch (hitorstand)
-		{
-		case 1:
-			std::cout << "\nYou draw a card: ";
 			deck[currentcard].PrintCard();
 			playerscore += deck.ValueToInt(deck[currentcard].value, playerscore);
 			playercards.emplace_back(currentcard);
 			currentcard++;
-			if (playerscore > 21)
+		}
+		std::cout << "Your hand value: " << playerscore << "\n";
+		if (playerscore == 21)
+		{
+			gameoverdealer = true; //Skip hit or stand
+			player.totalblackjacks++;
+			std::cout << "Blackjack!\n\n";
+
+			while (dealerscore < 21)
 			{
-				std::cout << "Your current hand value: " << playerscore << "\n\n";
-				std::cout << "You busted, dealer wins!\n";
-				std::cout << "Dealer's final hand:\n";
-				for (int cardindex : dealercards)
+				std::cout << "Dealer draws: ";
+				deck[currentcard].PrintCard();
+				dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+				dealercards.emplace_back(currentcard);
+				currentcard++;
+				std::cout << "Dealer's current hand value: " << dealerscore << "\n\n";
+			}
+			if (dealerscore == 21)
+			{
+				std::cout << "Blackjack for both!\nIt's a draw!!";
+				player.playerblackjackwins++;
+				dealer.dealerblackjackwins++;
+			}
+			if (dealerscore > 21)
+			{
+				std::cout << "Dealer busted, You win!\n";
+				std::cout << "Your final hand:\n";
+				for (int cardindex : playercards)
 				{
 					deck[cardindex].PrintCard();
 				}
-				dealer.dealerblackjackwins++;
-				gameoverplayer = true;
+				player.playerblackjackwins++;
+				gameoverdealer = true;
 			}
-			if (playerscore <= 21)
+		}
+
+		while (gameoverplayer == false && gameoverdealer == false)
+		{
+			while (true)
 			{
-				if (playerscore == 21) //Displays the blackjack! message, could be more elegantly done
+				std::cout << "\nHit (1) or stand (2): ";
+				std::cin >> hitorstand;
+				if (std::cin.fail())
 				{
-					player.totalblackjacks++;
-					std::cout << "Blackjack!\n";
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Not a number\n";
 				}
-				std::cout << "Your current hand value: " << playerscore << "\n";
-				if (dealerscore != 21 && dealerscore < playerscore)
+				else
+				{
+					if (hitorstand != 1 && hitorstand != 2)
+					{
+						std::cout << "Wrong number\n";
+						continue;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			switch (hitorstand)
+			{
+			case 1:
+				std::cout << "\nYou draw a card: ";
+				deck[currentcard].PrintCard();
+				playerscore += deck.ValueToInt(deck[currentcard].value, playerscore);
+				playercards.emplace_back(currentcard);
+				currentcard++;
+				if (playerscore > 21)
+				{
+					std::cout << "Your current hand value: " << playerscore << "\n\n";
+					std::cout << "You busted, dealer wins!\n";
+					std::cout << "Dealer's final hand:\n";
+					for (int cardindex : dealercards)
+					{
+						deck[cardindex].PrintCard();
+					}
+					dealer.dealerblackjackwins++;
+					gameoverplayer = true;
+				}
+				if (playerscore <= 21)
+				{
+					if (playerscore == 21) //Displays the blackjack! message, could be more elegantly done
+					{
+						player.totalblackjacks++;
+						std::cout << "Blackjack!\n";
+					}
+					std::cout << "Your current hand value: " << playerscore << "\n";
+					if (dealerscore != 21 && dealerscore < playerscore)
+					{
+						std::cout << "\nDealer draws a card: ";
+						deck[currentcard].PrintCard();
+						dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+						dealercards.emplace_back(currentcard);
+						currentcard++;
+						if (dealerscore == 21)
+						{
+							std::cout << "Blackjack!\n";
+						}
+						std::cout << "Dealer's current hand value: " << dealerscore << "\n";
+						if (dealerscore > 21)
+						{
+							std::cout << "\nDealer busted, You win!\n";
+							std::cout << "Your final hand:\n";
+							for (int cardindex : playercards)
+							{
+								deck[cardindex].PrintCard();
+							}
+							player.playerblackjackwins++;
+							gameoverdealer = true;
+						}
+					}
+				}
+				break;
+
+			case 2:
+				if (playerscore < dealerscore)
+				{
+					std::cout << "\nYou busted, dealer wins!\n";
+					std::cout << "Dealer's final hand:\n";
+					for (int cardindex : dealercards)
+					{
+						deck[cardindex].PrintCard();
+					}
+					dealer.dealerblackjackwins++;
+					gameoverplayer = true;
+
+				}
+				if (playerscore == dealerscore)
 				{
 					std::cout << "\nDealer draws a card: ";
 					deck[currentcard].PrintCard();
 					dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
 					dealercards.emplace_back(currentcard);
 					currentcard++;
-					if (dealerscore == 21)
-					{
-						std::cout << "Blackjack!\n";
-					}
 					std::cout << "Dealer's current hand value: " << dealerscore << "\n";
 					if (dealerscore > 21)
 					{
@@ -323,80 +363,82 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 						}
 						player.playerblackjackwins++;
 						gameoverdealer = true;
+						break;
 					}
 				}
+				while (dealerscore < playerscore)
+				{
+					std::cout << "\nDealer draws a card: ";
+					deck[currentcard].PrintCard();
+					dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+					dealercards.emplace_back(currentcard);
+					currentcard++;
+					std::cout << "Dealer's current hand value: " << dealerscore << "\n";
+					if (dealerscore > 21)
+					{
+						std::cout << "\nDealer busted, You win!\n";
+						std::cout << "Your final hand:\n";
+						for (int cardindex : playercards)
+						{
+							deck[cardindex].PrintCard();
+						}
+						player.playerblackjackwins++;
+						gameoverdealer = true;
+						break;
+					}
+					if (dealerscore == playerscore)
+					{
+						std::cout << "It's a draw!\n\n";
+						gameoverdealer = true;
+						gameoverplayer = true;
+						break;
+					}
+				}
+				break;
+
+			default:
+				std::cout << "Default case, something has gone terribly wrong!\n";
 			}
+		}
+		std::cout << "\nCurrent game score: Dealer " << dealer.dealerblackjackwins << " Player " << player.playerblackjackwins << "\n\n";
+		while (true)
+		{
+			std::cout << "Play again (1) or quit (2): ";
+			std::cin >> playornot;
+			if (std::cin.fail())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Not a number\n";
+			}
+			else
+			{
+				if (playornot != 1 && playornot != 2)
+				{
+					std::cout << "Wrong number\n";
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+		switch (playornot)
+		{
+		case 1:
+			std::cout << "Continuing Blackjack..\n";
 			break;
 
 		case 2:
-			if (playerscore < dealerscore)
-			{
-				std::cout << "\nYou busted, dealer wins!\n";
-				std::cout << "Dealer's final hand:\n";
-				for (int cardindex : dealercards)
-				{
-					deck[cardindex].PrintCard();
-				}
-				dealer.dealerblackjackwins++;
-				gameoverplayer = true;
-
-			}
-			if (playerscore == dealerscore)
-			{
-				std::cout << "\nDealer draws a card: ";
-				deck[currentcard].PrintCard();
-				dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
-				dealercards.emplace_back(currentcard);
-				currentcard++;
-				std::cout << "Dealer's current hand value: " << dealerscore << "\n";
-				if (dealerscore > 21)
-				{
-					std::cout << "\nDealer busted, You win!\n";
-					std::cout << "Your final hand:\n";
-					for (int cardindex : playercards)
-					{
-						deck[cardindex].PrintCard();
-					}
-					player.playerblackjackwins++;
-					gameoverdealer = true;
-					break;
-				}
-			}
-			while (dealerscore < playerscore)
-			{
-				std::cout << "\nDealer draws a card: ";
-				deck[currentcard].PrintCard();
-				dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
-				dealercards.emplace_back(currentcard);
-				currentcard++;
-				std::cout << "Dealer's current hand value: " << dealerscore << "\n";
-				if (dealerscore > 21)
-				{
-					std::cout << "\nDealer busted, You win!\n";
-					std::cout << "Your final hand:\n";
-					for (int cardindex : playercards)
-					{
-						deck[cardindex].PrintCard();
-					}
-					player.playerblackjackwins++;
-					gameoverdealer = true;
-					break;
-				}
-				if (dealerscore == playerscore)
-				{
-					std::cout << "It's a draw!\n\n";
-					gameoverdealer = true;
-					gameoverplayer = true;
-					break;
-				}
-			}
+			gameloop = false;
 			break;
 
 		default:
-			std::cout << "Default case, something has gone terribly wrong!\n";
+			std::cout << "\nDefault case, something has gone terribly wrong!\n";
+			break;
 		}
 	}
-	std::cout << "\nCurrent game score: Dealer " << dealer.dealerblackjackwins << " Player " << player.playerblackjackwins << std::endl;
 }
 
 void GameManager::Poker(Player& player, Dealer& dealer)
