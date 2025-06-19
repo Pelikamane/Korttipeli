@@ -10,7 +10,6 @@
 #include <algorithm> //enables std::shuffle
 #include <unordered_map> //Comparison for card point scoring
 
-const int maxCards = 52;
 
 //To please the compiler, Player and Dealer must be declared above GameManager
 class Player
@@ -39,6 +38,7 @@ public:
 
 	}
 	void Run();
+	void ShowRules();
 	void BlackJack(Player&, Dealer&);
 	void Poker(Player&, Dealer&);
 private:
@@ -51,10 +51,10 @@ void GameManager::Run()
 	Player player;
 	Dealer dealer;
 
-	while (choice != 2)
+	while (choice != 4)
 	{
-		std::cout << "CARD GAMES in C++" << std::endl << "by Otso\n\n";
-		std::cout << "1. Blackjack\n" << "2. Quit\n\n";
+		std::cout << "\nCARD GAMES in C++" << std::endl << "by Otso\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -82,9 +82,13 @@ void GameManager::Run()
 
 			case 3:
 			{
-				std::cout << "Goodbye!\n";
+				ShowRules();
 				break;
 			}
+
+			case 4:
+				std::cout << "Goodbye!\n";
+				break;
 
 			default:
 			{
@@ -119,6 +123,7 @@ public:
 	Deck();
 	void ShuffleDeck();
 	void PrintDeck();
+	void AddJokers(int);
 	int ValueToInt(std::string value, int);
 	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
 	{
@@ -160,6 +165,14 @@ void Deck::PrintDeck()
 	}
 }
 
+void Deck::AddJokers(int jokeramount)
+{
+	for (int i = 0; i < jokeramount; i++)
+	{
+		deck.emplace_back("JOKER", "0");
+	}
+}
+
 int Deck::ValueToInt(std::string value, int score)
 {
 	static std::unordered_map<std::string, int> valuemap = {
@@ -178,6 +191,48 @@ int Deck::ValueToInt(std::string value, int score)
 		return (returnable != valuemap.end() ? returnable->second : 100); //(condition) ? value_true : value_false
 	}
 	//if the returnable is found before the search has gone beyond index -> assign the value to the int next to the string -> else assign default value 100
+}
+
+void GameManager::ShowRules()
+{
+	bool showrules = true;
+	int rulesinput;
+	while (showrules == true)
+	{
+		std::cout << "\n\n\033[4mBlackjack rules:\033[0m\n\nA battle to reach the closest score to 21. Rounds end when you or the dealer go over 21\n\n\n";
+		std::cout << "\033[4mPoker hands rules:\033[0m\n\nYour goal is to create the best poker hand. You can exchange 3 cards with the dealer.\n"
+			"If the dealer doesn't want to exhange cards, you will draw them from the deck.\n\n\n";
+
+		while (true)
+		{
+			std::cout << "Input any number to go back: ";
+			std::cin >> rulesinput;
+			if (!std::cin.good())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Wrong input\n\n";
+				continue;
+			}
+			else
+			{
+				if (rulesinput == 69)
+				{
+					std::cout << "Nice.\n";
+				}
+				else if (rulesinput == 420)
+				{
+					std::cout << "Blaze that shit!\n";
+				}
+				else if (rulesinput == 42069 || rulesinput == 69420)
+				{
+					std::cout << "Ultimate combination!!\n";
+				}
+				showrules = false;
+				break;
+			}
+		}
+	}
 }
 
 void GameManager::BlackJack(Player& player, Dealer& dealer)
@@ -443,11 +498,38 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 
 void GameManager::Poker(Player& player, Dealer& dealer)
 {
-	int currentcard = 0;
+	int currentcard = 0, jokeramount = 0;
 	Deck pokerdeck;
 
-	std::cout << "\nWelcome to pokerhands!\nYour goal is to create the best poker hand. You can exchange 3 cards ";
+	std::cout << "\nWelcome to Poker hands!\n\n";
+	while (true)
+	{
+		std::cout << "The number of jokers added to the deck: ";
+		std::cin >> jokeramount;
+		if (std::cin.fail())
+		{
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			std::cout << "Wrong input\n\n";
+			continue; //back to the top of the loop
+		}
+		else
+		{
+			if (jokeramount == 0)
+			{
+				std::cout << "\nNo jokers will be added to the deck.\n";
+				break;
+			}
+			else
+			{
+				pokerdeck.AddJokers(jokeramount);
+				std::cout << jokeramount << " jokers added to the deck.\n";
+				break;
+			}
+		}
+	}
 
+	pokerdeck.PrintDeck();
 }
 
 int main()
