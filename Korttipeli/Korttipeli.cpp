@@ -133,7 +133,7 @@ public:
 
 Deck::Deck()
 {
-	std::vector<std::string> suits = { u8"\u2660", u8"\u2665", u8"\u2666", u8"\u2663" }; //Order of janky bitches: spade, heart, diamond, club
+	std::vector<std::string> suits = { u8"\033[35m\u2660\033[0m", u8"\033[31m\u2665\033[0m", u8"\033[91m\u2666\033[0m", u8"\033[95m\u2663\033[0m" }; //Order of janky bitches: spade, heart, diamond, club
 	std::vector<std::string> values = { "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" };
 
 	for (std::string& suit : suits)
@@ -169,7 +169,7 @@ void Deck::AddJokers(int jokeramount)
 {
 	for (int i = 0; i < jokeramount; i++)
 	{
-		deck.emplace_back("JOKER", "0");
+		deck.emplace_back(u8"\033[1m🃏\033[0m", "JOKER");
 	}
 }
 
