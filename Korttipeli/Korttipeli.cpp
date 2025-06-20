@@ -441,6 +441,10 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 						gameoverdealer = true;
 						break;
 					}
+					if (dealerscore == 21)
+					{
+						std::cout << "Blackjack!\n";
+					}
 					if (dealerscore == playerscore)
 					{
 						std::cout << "It's a draw!\n\n";
@@ -498,7 +502,8 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 
 void GameManager::Poker(Player& player, Dealer& dealer)
 {
-	int currentcard = 0, jokeramount = 0;
+	std::vector<Card> dealercards, playercards;
+	int currentcard = 0, jokeramount = 0, swapordraw, playerswap, dealerswap = 0;
 	Deck pokerdeck;
 
 	std::cout << "\nWelcome to Poker hands!\n\n";
@@ -528,8 +533,77 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			}
 		}
 	}
+	pokerdeck.ShuffleDeck();
+	std::cout << "\nDealer's cards:\n";
+	for (int i = 0; i < 5; i++)
+	{
+		std::cout << "X\n";
+		dealercards.emplace_back(currentcard);
+		currentcard++;
+	}
+	std::cout << "\nPlayer's cards:\n";
+	//for (int i = 0; i < 5; i++)
+	{
+		//pokerdeck[currentcard].PrintCard();
+		//playercards.emplace_back(std::string(pokerdeck[currentcard].suit), std::string(pokerdeck[currentcard].value));
+		//currentcard++;
+	}
+	while (true)
+	{
+		std::cout << "\nSwap cards with dealer (1)\nSwap cards from the deck (2)\nDo nothing (3)\n\nWhat would you like to do: ";
+		std::cin >> swapordraw;
+		if (!std::cin.good())
+		{
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			std::cout << "Not a number.\n\n";
+			continue;
+		}
+		else
+		{
+			if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3)
+			{
+				std::cout << "Wrong number.\n\n";
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	switch (swapordraw)
+	{
+	case 1:
+		while (true)
+		{
+			std::cout << "\nSelect which card to swap with dealer (1-5): ";
+			std::cin >> playerswap;
+			if (!std::cin.good())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Not a number.\n\n";
+				continue;
+			}
+			else
+			{
+				if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3 && swapordraw != 4 && swapordraw != 5)
+				{
+					std::cout << "Wrong number.\n\n";
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+		std::cout << "You picked: "; 
+		
 
-	pokerdeck.PrintDeck();
+	}
+
 }
 
 int main()
