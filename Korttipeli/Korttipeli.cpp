@@ -408,6 +408,10 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 					dealercards.emplace_back(currentcard);
 					currentcard++;
 					std::cout << "Dealer's current hand value: " << dealerscore << "\n";
+					if (dealerscore == 21)
+					{
+						std::cout << "Blackjack!\n";
+					}
 					if (dealerscore > 21)
 					{
 						std::cout << "\nDealer busted, You win!\n";
