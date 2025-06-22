@@ -108,6 +108,11 @@ public:
 
 	Card(std::string cardsuit, std::string cardvalue) : suit(cardsuit), value(cardvalue) {} //Fancy and efficient constructor (Why are the curly brackets needed)
 
+	bool operator==(const Card& other) const //This overload is to enable find() on vectors of Card
+	{
+		return value == other.value && suit == other.suit;
+	}
+
 	void PrintCard()
 	{
 		std::cout << suit << value << std::endl;
@@ -124,7 +129,7 @@ public:
 	void ShuffleDeck();
 	void PrintDeck();
 	void AddJokers(int);
-	int ValueToInt(std::string value, int);
+	int ValueToInt(std::string, int);
 	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
 	{
 		return deck[index];
@@ -503,13 +508,14 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 void GameManager::Poker(Player& player, Dealer& dealer)
 {
 	std::vector<Card> dealercards, playercards;
-	int currentcard = 0, jokeramount = 0, swapordraw, playerswap, dealerswap = 0;
+	bool swapordrawloop = true;
+	unsigned int currentcard = 0, jokeramount = 0, swapsleft = 3, swapordraw, playerswap, dealerswap;
 	Deck pokerdeck;
 
 	std::cout << "\nWelcome to Poker hands!\n\n";
 	while (true)
 	{
-		std::cout << "The number of jokers added to the deck: ";
+		std::cout << "Number of jokers added: ";
 		std::cin >> jokeramount;
 		if (std::cin.fail())
 		{
@@ -538,47 +544,22 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	for (int i = 0; i < 5; i++)
 	{
 		std::cout << "X\n";
-		dealercards.emplace_back(currentcard);
+		dealercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
 		currentcard++;
 	}
 	std::cout << "\nPlayer's cards:\n";
-	//for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 5; i++)
 	{
-		//pokerdeck[currentcard].PrintCard();
-		//playercards.emplace_back(std::string(pokerdeck[currentcard].suit), std::string(pokerdeck[currentcard].value));
-		//currentcard++;
+		pokerdeck[currentcard].PrintCard();
+		playercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
+		currentcard++;
 	}
-	while (true)
+	while (swapordrawloop && swapsleft != 0)
 	{
-		std::cout << "\nSwap cards with dealer (1)\nSwap cards from the deck (2)\nDo nothing (3)\n\nWhat would you like to do: ";
-		std::cin >> swapordraw;
-		if (!std::cin.good())
-		{
-			std::cin.clear();
-			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-			std::cout << "Not a number.\n\n";
-			continue;
-		}
-		else
-		{
-			if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3)
-			{
-				std::cout << "Wrong number.\n\n";
-				continue;
-			}
-			else
-			{
-				break;
-			}
-		}
-	}
-	switch (swapordraw)
-	{
-	case 1:
 		while (true)
 		{
-			std::cout << "\nSelect which card to swap with dealer (1-5): ";
-			std::cin >> playerswap;
+			std::cout << "\nSwap cards with dealer (1)\nSwap cards from the deck (2)\nDo nothing (3)\n\nWhat would you like to do: ";
+			std::cin >> swapordraw;
 			if (!std::cin.good())
 			{
 				std::cin.clear();
@@ -588,7 +569,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			}
 			else
 			{
-				if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3 && swapordraw != 4 && swapordraw != 5)
+				if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3)
 				{
 					std::cout << "Wrong number.\n\n";
 					continue;
@@ -599,11 +580,118 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 				}
 			}
 		}
-		std::cout << "You picked: "; 
+		switch (swapordraw)
+		{
+		case 1:
+			while (true)
+			{
+				std::cout << "\nSelect which card to swap with dealer (1-5): ";
+				std::cin >> playerswap;
+				if (!std::cin.good())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Not a number.\n\n";
+					continue;
+				}
+				else
+				{
+					if (playerswap != 1 && playerswap != 2 && playerswap != 3 && playerswap != 4 && playerswap != 5)
+					{
+						std::cout << "Wrong selection.\n\n";
+						continue;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			std::cout << "You picked: ";
+			playercards[playerswap - 1].PrintCard(); //The error handler takes care of the index range
+			while (true)
+			{
+				std::cout << "\nSelect a dealer's card to swap it with: ";
+				std::cin >> dealerswap;
+				if (!std::cin.good())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Not a number.\n\n";
+					continue;
+				}
+				else
+				{
+					if (dealerswap != 1 && dealerswap != 2 && dealerswap != 3 && dealerswap != 4 && dealerswap != 5)
+					{
+						std::cout << "Wrong selection.\n\n";
+						continue;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			std::swap(playercards[playerswap - 1], dealercards[dealerswap - 1]); //So convenient!
+			swapsleft--;
+			std::cout << "Swapping cards..\nSwaps left: " << swapsleft << "\n\n";
+			std::cout << "Your cards:\n";
+			for (int i = 0; i < playercards.size(); i++)
+			{
+				playercards[i].PrintCard();
+			}
+			break;
+
+		case 2:
+			while (true)
+			{
+				std::cout << "\nSelect which card to swap from the deck (1-5): ";
+				std::cin >> playerswap;
+				if (!std::cin.good())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Not a number.\n\n";
+					continue;
+				}
+				else
+				{
+					if (playerswap != 1 && playerswap != 2 && playerswap != 3 && playerswap != 4 && playerswap != 5)
+					{
+						std::cout << "Wrong selection.\n\n";
+						continue;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			std::cout << "You picked: ";
+			playercards[playerswap - 1].PrintCard();
+			std::cout << "Swapping card..\nSwaps left: " << swapsleft;
+			swapsleft--;
+			playercards.erase(find(playercards.begin(), playercards.end(), playercards[playerswap - 1])); //PROBLEMATIC without overload
+			playercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
+			currentcard++;
+			for (int i = 0; i < playercards.size(); i++)
+			{
+				playercards[i].PrintCard();
+			}
+			break;
+
+		case 3:
+			swapordrawloop = false;
+			break;
+		}
 		
-
+		std::cout << "\nRevealing dealer's hand:\n";
+		for (int i = 0; i < dealercards.size(); i++)
+		{
+			dealercards[i].PrintCard();
+		}
 	}
-
 }
 
 int main()
