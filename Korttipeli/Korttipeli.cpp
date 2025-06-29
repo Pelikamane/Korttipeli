@@ -10,7 +10,8 @@
 #include <algorithm> //enables std::shuffle
 #include <unordered_map> //Comparison for card point scoring
 
-
+//BUGS: Suorat on paskana ("neededforstraight" ei ole tarpeeks tarkka), Värin tunnistaminen pitää korjata, "samesuit" ei saa olla jokeri 
+// 
 //To please the compiler, Player and Dealer must be declared above GameManager
 class Player
 {
@@ -128,7 +129,9 @@ public:
 	Deck();
 	void ShuffleDeck();
 	void PrintDeck();
+	void PrintHand(std::vector<Card>&);
 	void AddJokers(int);
+	void SortHand(std::vector<Card>&);
 	int ValueToInt(std::string, int);
 	int EvaluateHand(std::vector<Card>);
 	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
@@ -163,6 +166,14 @@ void Deck::ShuffleDeck() //This is actual voodoo
 	std::cout << "Current seed: " << seed << std::endl;
 }
 
+void Deck::PrintHand(std::vector<Card> &hand)
+{
+	for (Card card : hand)
+	{
+		card.PrintCard();
+	}
+}
+
 void Deck::PrintDeck()
 {
 	for (Card card : deck)
@@ -176,6 +187,28 @@ void Deck::AddJokers(int jokeramount)
 	for (int i = 0; i < jokeramount; i++)
 	{
 		deck.emplace_back(u8"\033[1m🃏\033[0m", "JOKER");
+	}
+}
+
+void Deck::SortHand(std::vector<Card>& pokerhand)
+{
+	static const std::unordered_map<std::string, int> valuemap = {
+		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
+		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
+		{"J", 11}, {"Q", 12}, {"K", 13},
+		{"A", 14}, {"JOKER", 0}
+	};
+	for (int i = 0; i < pokerhand.size() - 1; i++)
+	{
+		for (int y = 0; y < pokerhand.size() - i - 1; y++)
+		{
+			int foundvalue = valuemap.at(pokerhand[y].value);
+			int foundvalue2 = valuemap.at(pokerhand[y + 1].value);
+			if (foundvalue > foundvalue2)
+			{
+				std::swap(pokerhand[y], pokerhand[y + 1]);
+			}
+		}
 	}
 }
 
@@ -238,7 +271,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	sort(handvalues.begin(), handvalues.end());
 	for (int i = 0; i < handvalues.size() - 1; i++)
 	{
-		if (handvalues[i + 1] - handvalues[i] == 1)
+		if ((handvalues[i + 1] - handvalues[i] == 1) || handvalues[i] == 0)
 		{
 			neededforstraight--;
 			if (neededforstraight == 0)
@@ -247,7 +280,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 			}
 		}
 	}
-	if (aces == 1 && !straight)
+	if ((aces == 1 && !straight) && jokers == 0)
 	{
 		for (int i = 0; i < handvalues.size(); i++)
 		{
@@ -258,7 +291,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 			straight = true;
 		}
 	}
-	//DEBUG std::cout << "Suoraan tarvitaan: " << neededforstraight << "\nAces: " << aces << std::endl;
+	std::cout << "Suoraan tarvitaan: " << neededforstraight << "\nSama maa: " << samesuit << "\nAces: " << aces << std::endl;
 	for (int value : handvalues)
 	{
 		valuecounts[value]++;
@@ -301,7 +334,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	{
 		handtype = 13;
 	}
-	else if (fourofakindjoker)
+	else if ((fourofakindjoker) || (threeofakindjoker && pairs == 1 && flush))
 	{
 		handtype = 12;
 	}
@@ -329,7 +362,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	{
 		handtype = 5;
 	}
-	else if ((straight) || (neededforstraight == 1 && jokers == 1) || (neededforstraight == 2 && jokers == 2))
+	else if ((straight) || (neededforstraight == 1 && jokers == 1 && pairs == 0) || (neededforstraight == 2 && jokers == 2))
 	{
 		handtype = 4;
 	}
@@ -773,13 +806,17 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 		dealercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
 		currentcard++;
 	}
+	pokerdeck.SortHand(dealercards);
+	pokerdeck.EvaluateHand(dealercards);
 	std::cout << "\nPlayer's cards:\n";
 	for (int i = 0; i < 5; i++)
 	{
-		pokerdeck[currentcard].PrintCard();
 		playercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
 		currentcard++;
 	}
+	pokerdeck.SortHand(playercards);
+	pokerdeck.PrintHand(playercards);
+	pokerdeck.EvaluateHand(playercards);
 	while (swapordrawloop && swapsleft != 0)
 	{
 		while (true)
@@ -863,10 +900,9 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			swapsleft--;
 			std::cout << "Swapping cards..\nSwaps left: " << swapsleft << "\n\n";
 			std::cout << "Your cards:\n";
-			for (int i = 0; i < playercards.size(); i++)
-			{
-				playercards[i].PrintCard();
-			}
+			pokerdeck.SortHand(playercards);
+			pokerdeck.PrintHand(playercards);
+			pokerdeck.EvaluateHand(playercards);
 			break;
 
 		case 2:
@@ -896,15 +932,14 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			}
 			std::cout << "You picked: ";
 			playercards[playerswap - 1].PrintCard();
-			std::cout << "Swapping card..\nSwaps left: " << swapsleft;
 			swapsleft--;
+			std::cout << "Swapping card..\nSwaps left: " << swapsleft << "\n";
 			playercards.erase(find(playercards.begin(), playercards.end(), playercards[playerswap - 1])); //PROBLEMATIC without overload
 			playercards.emplace_back(pokerdeck[currentcard].suit, pokerdeck[currentcard].value);
 			currentcard++;
-			for (int i = 0; i < playercards.size(); i++)
-			{
-				playercards[i].PrintCard();
-			}
+			pokerdeck.SortHand(playercards);
+			pokerdeck.PrintHand(playercards);
+			pokerdeck.EvaluateHand(playercards);
 			break;
 
 		case 3:
@@ -913,10 +948,9 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 		}
 	}
 	std::cout << "\nRevealing dealer's hand:\n";
-	for (int i = 0; i < dealercards.size(); i++)
-	{
-		dealercards[i].PrintCard();
-	}
+	pokerdeck.SortHand(dealercards);
+	pokerdeck.PrintHand(dealercards);
+	pokerdeck.EvaluateHand(dealercards);
 }
 
 int main()
