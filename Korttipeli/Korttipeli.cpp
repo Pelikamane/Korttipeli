@@ -1,5 +1,6 @@
 ﻿#include <string>
 #include <limits> //for numeric_limits 
+#include <numeric>
 #include <vector>
 #include <iostream>
 #include <ios> //for <streamsize>
@@ -10,8 +11,6 @@
 #include <algorithm> //enables std::shuffle
 #include <unordered_map> //Comparison for card point scoring
 
-//BUGS: Suorat on paskana ("neededforstraight" ei ole tarpeeks tarkka), Värin tunnistaminen pitää korjata, "samesuit" ei saa olla jokeri 
-// 
 //To please the compiler, Player and Dealer must be declared above GameManager
 class Player
 {
@@ -133,7 +132,7 @@ public:
 	void AddJokers(int);
 	void SortHand(std::vector<Card>&);
 	int ValueToInt(std::string, int);
-	int EvaluateHand(std::vector<Card>);
+	int EvaluateHand(std::vector<Card>&);
 	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
 	{
 		return deck[index];
@@ -232,13 +231,15 @@ int Deck::ValueToInt(std::string value, int score)
 	//if the returnable is found before the search has gone beyond index -> assign the value to the int next to the string -> else assign default value 100
 }
 
-int Deck::EvaluateHand(std::vector<Card> pokerhand)
+int Deck::EvaluateHand(std::vector<Card> &pokerhand)
 {
-	std::string firstsuit = pokerhand[0].suit;
-	int sum = 0, jokers = 0, aces = 0, pairs = 0, samesuit = 0, neededforstraight = 4, handtype = NULL;
+	std::string firstsuit;
+	int sum = 0, jokers = 0, aces = 0, pairs = 0, samesuit = 0, 
+		straightgaps = 0, largegaps = 0, neededforstraight = 4, handtype = NULL;
+	
 	bool straight = false, flush = false, threeofakind = false, fourofakind = false,
 		threeofakindjoker = false, fourofakindjoker = false, fiveofakindjoker = false;
-	std::vector<int> handvalues;
+	std::vector<int> handvalues, royalvalues = {10, 11, 12, 13, 14};
 	std::unordered_map<int, int> valuecounts;
 	static std::unordered_map<std::string, int> valuemap = {
 		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
@@ -246,10 +247,17 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 		{"J", 11}, {"Q", 12}, {"K", 13},
 		{"A", 14}, {"JOKER", 0}
 	};
-
 	for (int i = 0; i < pokerhand.size(); i++)
 	{
-		if ((firstsuit == pokerhand[i].suit) || (pokerhand[i].value == "0"))
+		if (pokerhand[i].value != "JOKER")
+		{
+			firstsuit = pokerhand[i].suit;
+			break;
+		}
+	}
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		if ((firstsuit == pokerhand[i].suit) || (pokerhand[i].value == "JOKER"))
 		{
 			samesuit++;
 			if (samesuit == 5)
@@ -259,6 +267,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 		}
 		auto foundvalue = valuemap.find(pokerhand[i].value);
 		handvalues.emplace_back(foundvalue->second);
+		auto royalindex = find(royalvalues.begin(), royalvalues.end(), handvalues[i]);
 		if (foundvalue->second == 0)
 		{
 			jokers++;
@@ -267,48 +276,33 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 		{
 			aces++;
 		}
+		else if (royalindex != royalvalues.end())
+		{
+			std::cout << "This element of royals removed: " << handvalues[i] << "\n";
+			royalvalues.erase(royalindex);
+			std::cout << "The size of royalvalues = " << royalvalues.size() << "\n";
+		}
+	}
+	if (aces >= 1)
+	{
+		handvalues.push_back(1); //Ace also counted as 1 for low straights
 	}
 	sort(handvalues.begin(), handvalues.end());
-	for (int i = 0; i < handvalues.size() - 1; i++)
-	{
-		if ((handvalues[i + 1] - handvalues[i] == 1) || handvalues[i] == 0)
-		{
-			neededforstraight--;
-			if (neededforstraight == 0)
-			{
-				straight = true;
-			}
-		}
-	}
-	if ((aces == 1 && !straight) && jokers == 0)
-	{
-		for (int i = 0; i < handvalues.size(); i++)
-		{
-			sum += handvalues[i];
-		}
-		if (sum - 14 == 14)
-		{
-			straight = true;
-		}
-	}
-	std::cout << "Suoraan tarvitaan: " << neededforstraight << "\nSama maa: " << samesuit << "\nAces: " << aces << std::endl;
+	sum = std::accumulate(handvalues.begin(), handvalues.end(), 0);
 	for (int value : handvalues)
 	{
 		valuecounts[value]++;
 	}
-	/*for (auto& paska : valuecounts)
-	{
-		std::cout << paska.first << " : " << paska.second << std::endl;
-	} DEBUG */
 	for (auto& i : valuecounts)
 	{
+		std::cout << i.first << " : " << i.second << std::endl;
 		int amount = i.second, cardvalue = i.first;
 
 		if (amount == 5 && cardvalue == 0)
 		{
 			fiveofakindjoker = true;
 		}
-		if (amount == 4 && cardvalue != 0)
+		else if (amount == 4 && cardvalue != 0)
 		{
 			fourofakind = true;
 		}
@@ -330,6 +324,34 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 		}
 	}
 
+	for (int i = 0; i < handvalues.size() - 1; i++)
+	{
+		if ((handvalues[i + 1] - handvalues[i] == 1) || (handvalues[i] == 0))
+		{
+			neededforstraight--;
+			if (neededforstraight == 0)
+			{
+				straight = true;
+				std::cout << "\nStraight formed normally\n";
+			}
+		}
+		else if ((handvalues[i + 1] - handvalues[i]) == 2 && (handvalues[i] != 0) && (handvalues[i] != 1))
+		{
+			straightgaps++;
+		}
+		else if ((handvalues[i + 1] - handvalues[i] > 2) && (handvalues[i] != 0) && (handvalues[i] != 1))
+		{
+			largegaps++;
+		}
+	}
+	if ((straightgaps != 0) && (jokers != 0) && (largegaps == 0) && (jokers >= straightgaps) && (pairs == 0))
+	{
+		straight = true;
+		std::cout << "\nStraight formed with joker\n";
+	}
+	std::cout << "Suoraan tarvitaan: " << neededforstraight << /*"\nSama maa: " << samesuit << "\nValittu maa: " << firstsuit
+		<<*/ "\nGaps: " << straightgaps << "\nLarge gaps: " << largegaps << "\nSum of hand: " << sum << "\n\n";
+
 	if (fiveofakindjoker)
 	{
 		handtype = 13;
@@ -338,7 +360,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	{
 		handtype = 12;
 	}
-	else if (straight && flush && sum != 28)
+	else if ((straight && flush) && (royalvalues.size() - jokers == 0))
 	{
 		handtype = 11;
 	}
@@ -354,7 +376,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	{
 		handtype = 7;
 	}
-	else if (threeofakind && pairs)
+	else if (threeofakind && pairs == 1)
 	{
 		handtype = 6;
 	}
@@ -362,7 +384,7 @@ int Deck::EvaluateHand(std::vector<Card> pokerhand)
 	{
 		handtype = 5;
 	}
-	else if ((straight) || (neededforstraight == 1 && jokers == 1 && pairs == 0) || (neededforstraight == 2 && jokers == 2))
+	else if (straight)
 	{
 		handtype = 4;
 	}
@@ -768,7 +790,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 {
 	std::vector<Card> dealercards, playercards;
 	bool swapordrawloop = true;
-	unsigned int currentcard = 0, jokeramount = 0, swapsleft = 3, swapordraw, playerswap, dealerswap;
+	unsigned int currentcard = 0, jokeramount = 0, swapsleft = 10, swapordraw, playerswap, dealerswap;
 	Deck pokerdeck;
 
 	std::cout << "\nWelcome to Poker hands!\n\n";
