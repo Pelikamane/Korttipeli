@@ -12,6 +12,7 @@
 #include <unordered_map> //Comparison for card point scoring
 
 //To please the compiler, Player and Dealer must be declared above GameManager
+//Straghts are still broken!!
 class Player
 {
 public:
@@ -45,61 +46,6 @@ private:
 
 };
 
-void GameManager::Run()
-{
-	int choice = 0;
-	Player player;
-	Dealer dealer;
-
-	while (choice != 4)
-	{
-		std::cout << "\nCARD GAMES in C++" << std::endl << "by Otso\n\n";
-		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Quit\n\n";
-		std::cout << "What do you want to do: ";
-		std::cin >> choice;
-		if (std::cin.fail())
-		{
-			std::cin.clear();
-			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-			std::cout << "Wrong input\n\n";
-			continue; //back to the top of the loop
-		}
-		else
-		{
-			switch (choice)
-			{
-			case 1:
-			{
-				BlackJack(player, dealer);
-				break;
-			}
-
-			case 2:
-			{
-				Poker(player, dealer);
-				break;
-			}
-
-			case 3:
-			{
-				ShowRules();
-				break;
-			}
-
-			case 4:
-				std::cout << "Goodbye!\n";
-				break;
-
-			default:
-			{
-				std::cout << "Default case, wrong number input!\n\n";
-				break;
-			}
-			}
-		}
-	}
-}
-
 class Card
 {
 public:
@@ -132,12 +78,31 @@ public:
 	void AddJokers(int);
 	void SortHand(std::vector<Card>&);
 	int ValueToIntBlackjack(std::string, int);
-	int EvaluateHand(std::vector<Card>&);
 	int ValueToIntPoker(std::vector<Card>&);
 	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
 	{
 		return deck[index];
 	}
+};
+
+class HandEvaluator
+{
+public:
+	HandEvaluator(Deck& deck) : deck_(deck) {}
+	void ResetEvaluator();
+	bool IsFlush(std::vector<Card>&);
+	bool IsStraight(std::vector<int>&);
+	bool IsRoyalStraight(std::vector<int>&);
+	void SameCards(std::vector<int>&);
+	int EvaluateHand(std::vector<Card>&);
+
+private:
+	Deck& deck_;
+	int jokers_ = 0, aces_ = 0, pairs_ = 0, biggestcard_ = NULL, smallestcard_ = NULL;
+	std::vector<int> samecardvalues_;
+	bool straight_ = false, royalstraight_ = false, flush_ = false, threeofakind_ = false, fourofakind_ = false,
+		threeofakindjoker_ = false, fourofakindjoker_ = false, fiveofakindjoker_ = false;
+
 };
 
 Deck::Deck()
@@ -232,248 +197,7 @@ int Deck::ValueToIntBlackjack(std::string value, int score)
 	//if the returnable is found before the search has gone beyond index -> assign the value to the int next to the string -> else assign default value 100
 }
 
-int Deck::EvaluateHand(std::vector<Card> &pokerhand)
-{
-	std::string firstsuit;
-	int jokers = 0, aces = 0, pairs = 0, samesuit = 0, 
-		straightgaps = 0, largegaps = 0, neededforstraight = 4, handtype = NULL, jokervalue = NULL;
-	
-	bool straight = false, flush = false, threeofakind = false, fourofakind = false,
-		threeofakindjoker = false, fourofakindjoker = false, fiveofakindjoker = false;
-	std::vector<int> handvalues, valueandtype, royalvalues = {10, 11, 12, 13, 14};
-	std::unordered_map<int, int> valuecounts;
-	static std::unordered_map<std::string, int> valuemap = {
-		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
-		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
-		{"J", 11}, {"Q", 12}, {"K", 13},
-		{"A", 14}, {"JOKER", 0}
-	};
-	for (int i = 0; i < pokerhand.size(); i++)
-	{
-		if (pokerhand[i].value != "JOKER")
-		{
-			firstsuit = pokerhand[i].suit;
-			break;
-		}
-	}
-	for (int i = 0; i < pokerhand.size(); i++)
-	{
-		if ((firstsuit == pokerhand[i].suit) || (pokerhand[i].value == "JOKER"))
-		{
-			samesuit++;
-			if (samesuit == 5)
-			{
-				flush = true;
-			}
-		}
-		auto foundvalue = valuemap.find(pokerhand[i].value);
-		handvalues.emplace_back(foundvalue->second);
-		auto royalindex = find(royalvalues.begin(), royalvalues.end(), handvalues[i]);
-		if (foundvalue->second == 0)
-		{
-			jokers++;
-		}
-		else if (foundvalue->second == 14)
-		{
-			aces++;
-		}
-		else if (royalindex != royalvalues.end())
-		{
-			//DEBUG: std::cout << "This element of royals removed: " << handvalues[i] << "\n";
-			royalvalues.erase(royalindex);
-			//DEBUG: std::cout << "The size of royalvalues = " << royalvalues.size() << "\n";
-		}
-	}
-	if (aces >= 1)
-	{
-		handvalues.push_back(1); //Ace also counted as 1 for low straights
-	}
-	sort(handvalues.begin(), handvalues.end());
-	for (int value : handvalues)
-	{
-		valuecounts[value]++;
-	}
-	for (auto& i : valuecounts)
-	{
-		//DEBUG: std::cout << i.first << " : " << i.second << std::endl;
-		int amount = i.second, cardvalue = i.first;
-
-		if (amount == 5 && cardvalue == 0)
-		{
-			fiveofakindjoker = true;
-		}
-		else if (amount == 4 && cardvalue != 0)
-		{
-			fourofakind = true;
-		}
-		else if (amount == 4 && cardvalue == 0)
-		{
-			fourofakindjoker = true;
-		}
-		else if (amount == 3 && cardvalue != 0)
-		{
-			threeofakind = true;
-		}
-		else if (amount == 3 && cardvalue == 0)
-		{
-			threeofakindjoker = true;
-		}
-		else if (amount == 2 && cardvalue != 0)
-		{
-			pairs++;
-		}
-	}
-
-	for (int i = 0; i < handvalues.size() - 1; i++)
-	{
-		if ((handvalues[i + 1] - handvalues[i] == 1) || (handvalues[i] == 0))
-		{
-			neededforstraight--;
-			if (neededforstraight == 0)
-			{
-				straight = true;
-			}
-		}
-		else if ((handvalues[i + 1] - handvalues[i]) == 2 && (handvalues[i] != 0) && (handvalues[i] != 1))
-		{
-			straightgaps++;
-		}
-		else if ((handvalues[i + 1] - handvalues[i] > 2) && (handvalues[i] != 0) && (handvalues[i] != 1))
-		{
-			largegaps++;
-		}
-	}
-	if ((straightgaps != 0) && (jokers != 0) && (largegaps == 0) && (jokers >= straightgaps) && (pairs == 0))
-	{
-		straight = true;
-	}
-	/*DEBUG std::cout << "Suoraan tarvitaan: " << neededforstraight << "\nSama maa: " << samesuit << "\nValittu maa: " << firstsuit
-		<< "\nGaps: " << straightgaps << "\nJoker value: " << jokervalue <<"\nLarge gaps: " << largegaps "\n\n";*/
-
-	if (fiveofakindjoker)
-	{
-		handtype = 13;
-	}
-	else if ((fourofakindjoker) || (threeofakindjoker && pairs == 1 && flush))
-	{
-		handtype = 12;
-	}
-	else if ((straight && flush) && (royalvalues.size() - jokers == 0))
-	{
-		handtype = 11;
-	}
-	else if ((fourofakind && jokers == 1) || (threeofakindjoker && pairs == 1))
-	{
-		handtype = 10;
-	}
-	else if (flush && straight)
-	{
-		handtype = 8;
-	}
-	else if ((fourofakind && jokers == 0) || (threeofakind && jokers == 1) || (pairs == 1 && jokers == 2) || (threeofakindjoker && pairs == 0))
-	{
-		handtype = 7;
-	}
-	else if (threeofakind && pairs == 1)
-	{
-		handtype = 6;
-	}
-	else if (flush && !straight)
-	{
-		handtype = 5;
-	}
-	else if (straight)
-	{
-		handtype = 4;
-	}
-	else if ((pairs == 0 && jokers == 2) || (pairs == 1 && jokers == 1))
-	{
-		handtype = 3;
-	}
-	else if (pairs == 2 && jokers == 0)
-	{
-		handtype = 2;
-	}
-	else if ((pairs == 1) || (pairs == 0 && jokers == 1))
-	{
-		handtype = 1;
-	}
-
-	switch (handtype)
-	{
-	case 1:
-		std::cout << "Pair\n";
-		return 1;
-		break;
-
-	case 2:
-		std::cout << "Two pair\n";
-		return 2;
-		break;
-
-	case 3:
-		std::cout << "Three of a kind\n";
-		return 3;
-		break;
-
-	case 4:
-		std::cout << "Straight\n";
-		return 4;
-		break;
-
-	case 5:
-		std::cout << "Flush!\n";
-		return 5;
-		break;
-
-	case 6:
-		std::cout << "Full house!\n";
-		return 6;
-		break;
-
-	case 7:
-		std::cout << "Four of a kind!!\n";
-		return 7;
-		break;
-
-	case 8:
-		std::cout << "Straight flush!!\n";
-		return 8;
-		break;
-
-	case 9:
-		std::cout << "Flush house!!\n";
-		return 9;
-		break;
-
-	case 10:
-		std::cout << "FIVE OF A KIND!!!\n";
-		return 10;
-		break;
-
-	case 11:
-		std::cout << "ROYAL FLUSH!!!\n";
-		return 11;
-		break;
-
-	case 12:
-		std::cout << "FLUSH FIVE!!!!\n";
-		return 12;
-		break;
-
-	case 13:
-		std::cout << "JOKER FIVE!!!!\n";
-		return 13;
-		break;
-
-	default:
-		std::cout << "Highcard..\n";
-		return 0;
-		break;
-	}
-}
-
-int Deck::ValueToIntPoker(std::vector<Card>& pokerhand)
+int Deck::ValueToIntPoker(std::vector<Card> &pokerhand)
 {
 	std::vector<int> handvalues;
 	std::unordered_map<int, int> valuecounts;
@@ -523,6 +247,347 @@ int Deck::ValueToIntPoker(std::vector<Card>& pokerhand)
 		}
 	}
 	return (std::accumulate(handvalues.begin(), handvalues.end(), 0));
+}
+
+void HandEvaluator::ResetEvaluator()
+{
+	jokers_ = 0;
+	aces_ = 0;
+	pairs_ = 0;
+	biggestcard_ = NULL;
+	smallestcard_ = NULL;
+	samecardvalues_.clear();
+
+	straight_ = false;
+	royalstraight_ = false;
+	flush_ = false;
+	threeofakind_ = false;
+	fourofakind_ = false;
+	threeofakindjoker_ = false;
+	fourofakindjoker_ = false;
+	fiveofakindjoker_ = false;
+}
+
+void HandEvaluator::SameCards(std::vector<int>& handvalues)
+{
+	std::unordered_map<int, int> valuecounts;
+	for (int value : handvalues)
+	{
+		valuecounts[value]++;
+	}
+	for (auto& i : valuecounts)
+	{
+		//DEBUG: std::cout << i.first << " : " << i.second << std::endl;
+		int amount = i.second, cardvalue = i.first;
+
+		if (amount == 5 && cardvalue == 0)
+		{
+			fiveofakindjoker_ = true;
+		}
+		else if (amount == 4 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			fourofakind_ = true;
+		}
+		else if (amount == 4 && cardvalue == 0)
+		{
+			fourofakindjoker_ = true;
+		}
+		else if (amount == 3 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			threeofakind_ = true;
+		}
+		else if (amount == 3 && cardvalue == 0)
+		{
+			threeofakindjoker_ = true;
+		}
+		else if (amount == 2 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			pairs_++;
+		}
+	}
+	/*DEBUG: if (samecardvalues_.empty())
+	{
+		std::cout << "Samecards is empty.\n";
+	}
+	else
+	{
+		for (int i : samecardvalues_)
+		{
+			std::cout << "Same card: " << i << "\n";
+		}
+	}*/
+	
+}
+
+bool HandEvaluator::IsFlush(std::vector<Card> &pokerhand)
+{
+	int samesuit = 0;
+	std::string firstsuit;
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		if (pokerhand[i].value != "JOKER")
+		{
+			firstsuit = pokerhand[i].suit;
+			break;
+		}
+	}
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		if ((firstsuit == pokerhand[i].suit) || (pokerhand[i].value == "JOKER"))
+		{
+			samesuit++;
+			if (samesuit == 5)
+			{
+				//DEBUG: std::cout << "Flush made with " << firstsuit << "\n";
+				return true;
+			}
+		}
+	}
+	//DEBUG: std::cout << "\nSama maa: " << samesuit << "\nValittu maa: " << firstsuit << "\n";
+	return false;
+}
+
+bool HandEvaluator::IsStraight(std::vector<int> &handvalues)
+{
+	int neededforstraight = 4, straightgaps = 0, largegaps = 0;
+	std::vector<int> missingcards;
+
+	for (int i = 0; i < handvalues.size() - 1; i++)
+	{
+		int valuedifference = handvalues[i + 1] - handvalues[i];
+		if (valuedifference == 1)
+		{
+			neededforstraight--;
+			if (neededforstraight == 0)
+			{
+				std::cout << "Straight formed normally\n\n";
+				return true;
+			}
+		}
+		else if (valuedifference >= 2 && handvalues[i] > 1)
+		{
+			int gapsize = valuedifference - 1;
+			for (int gapvalue = handvalues[i] + 1; gapvalue < handvalues[i + 1]; gapvalue++)
+			{
+				std::cout << "Value put into missingcards: " << gapvalue << "\n";
+				missingcards.push_back(gapvalue);
+			}
+			largegaps++;
+		}
+	}
+	if (straightgaps > 0 && jokers_ >= missingcards.size()) // Pitää korjata
+	{
+		for (int i = 0; i < straightgaps; i++)
+		{
+			std::cout << "Using joker as " << missingcards[i] << "\n";
+			handvalues.push_back(missingcards[i]);
+		}
+		std::cout << "Straight formed with joker\n\n";
+		return true;
+	}
+	std::cout << "Suoraan tarvitaan: " << neededforstraight << "\nGaps: " << straightgaps << "\nLarge gaps: " << largegaps << "\n";
+	return false;
+}
+
+bool HandEvaluator::IsRoyalStraight(std::vector<int> &handvalues)
+{
+	std::vector<int> royalvalues = { 10, 11, 12, 13, 14 };
+	for (int i = 0; i < handvalues.size(); i++)
+	{
+		auto royalindex = find(royalvalues.begin(), royalvalues.end(), handvalues[i]);
+		if (royalindex != royalvalues.end())
+		{
+			//DEBUG: std::cout << "This element of royals removed: " << handvalues[i] << "\n";
+			royalvalues.erase(royalindex);
+			//DEBUG: std::cout << "The size of royalvalues = " << royalvalues.size() << "\n";
+		}
+	}
+	if (royalvalues.size() - jokers_ == 0)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+int HandEvaluator::EvaluateHand(std::vector<Card> &pokerhand)
+{
+	int handtype = NULL, jokervalue = NULL;
+	std::vector<int> handvalues;
+	static std::unordered_map<std::string, int> valuemap = {
+		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
+		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
+		{"J", 11}, {"Q", 12}, {"K", 13},
+		{"A", 14}, {"JOKER", 0}
+	};
+	ResetEvaluator();
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		auto foundvalue = valuemap.find(pokerhand[i].value);
+		handvalues.emplace_back(foundvalue->second);
+		if (foundvalue->second == 0)
+		{
+			jokers_++;
+		}
+		else if (foundvalue->second == 14)
+		{
+			aces_++;
+		}
+	}
+	biggestcard_ = handvalues[0];
+	smallestcard_ = handvalues[0];
+	for (int i : handvalues)
+	{
+		if (i > biggestcard_)
+		{
+			biggestcard_ = i;
+		}
+		if (i < smallestcard_)
+		{
+			smallestcard_ = i;
+		}
+	}
+	//DEBUG: std::cout << "Biggest card: " << biggestcard_ << "\nSmallest card : " << smallestcard_ << "\n";
+	if (aces_ >= 1)
+	{
+		handvalues.push_back(1);
+	}
+	sort(handvalues.begin(), handvalues.end());
+	SameCards(handvalues);
+	flush_ = IsFlush(pokerhand);
+	if (pairs_ == 0 && threeofakind_ == false && fourofakind_ == false && fiveofakindjoker_ == false) 
+	{
+		straight_ = IsStraight(handvalues);
+		if (straight_ == true)
+		{
+			royalstraight_ = IsRoyalStraight(handvalues);
+		}
+	}
+	if (fiveofakindjoker_)
+	{
+		std::cout << "JOKER FIVE!!!!\n";
+		return 13;
+	}
+	else if ((fourofakindjoker_) || (threeofakindjoker_ && pairs_ == 1 && flush_))
+	{
+		std::cout << "FLUSH FIVE!!!!\n";
+		return 12;
+	}
+	else if (royalstraight_ && flush_)
+	{
+		std::cout << "ROYAL FLUSH!!!\n";
+		return 11;
+	}
+	else if ((fourofakind_ && jokers_ == 1) || (threeofakindjoker_ && pairs_ == 1))
+	{
+		std::cout << "FIVE OF A KIND!!!\n";
+		return 10;
+	}
+	else if (flush_ && straight_)
+	{
+		std::cout << "Straight flush!!\n";
+		return 8;
+	}
+	else if ((fourofakind_ && jokers_ == 0) || (threeofakind_ && jokers_ == 1) || (pairs_ == 1 && jokers_ == 2) || (threeofakindjoker_ && pairs_ == 0))
+	{
+		std::cout << "Four of a kind!!\n";
+		return 7;
+	}
+	else if ((threeofakind_ && pairs_ == 1) || (pairs_ == 2 && jokers_ == 1))
+	{
+		std::cout << "Full house!\n";
+		return 6;
+	}
+	else if (flush_ && !straight_)
+	{
+		std::cout << "Flush!\n";
+		return 5;
+	}
+	else if (straight_)
+	{
+		std::cout << "Straight\n";
+		return 4;
+	}
+	else if ((pairs_ == 0 && jokers_ == 2) || (pairs_ == 1 && jokers_ == 1))
+	{
+		std::cout << "Three of a kind\n";
+		return 3;
+	}
+	else if (pairs_ == 2 && jokers_ == 0)
+	{
+		std::cout << "Two pair\n";
+		return 2;
+	}
+	else if ((pairs_ == 1) || (pairs_ == 0 && jokers_ == 1))
+	{
+		std::cout << "Pair\n";
+		return 1;
+	}
+	else
+	{
+		std::cout << "Highcard..\n";
+		return 0;
+	}
+}
+
+void GameManager::Run()
+{
+	int choice = 0;
+	Player player;
+	Dealer dealer;
+
+	while (choice != 4)
+	{
+		std::cout << "\nCARD GAMES in C++" << std::endl << "by Otso\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Quit\n\n";
+		std::cout << "What do you want to do: ";
+		std::cin >> choice;
+		if (std::cin.fail())
+		{
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			std::cout << "Wrong input\n\n";
+			continue; //back to the top of the loop
+		}
+		else
+		{
+			switch (choice)
+			{
+			case 1:
+			{
+				BlackJack(player, dealer);
+				break;
+			}
+
+			case 2:
+			{
+				Poker(player, dealer);
+				break;
+			}
+
+			case 3:
+			{
+				ShowRules();
+				break;
+			}
+
+			case 4:
+				std::cout << "Goodbye!\n";
+				break;
+
+			default:
+			{
+				std::cout << "Default case, wrong number input!\n\n";
+				break;
+			}
+			}
+		}
+	}
 }
 
 void GameManager::ShowRules()
@@ -843,6 +908,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	bool swapordrawloop = true;
 	unsigned int currentcard = 0, jokeramount = 0, swapsleft = NULL, swapordraw = NULL, playerswap = NULL, dealerswap = NULL;
 	Deck pokerdeck;
+	HandEvaluator evaluator(pokerdeck);
 
 	std::cout << "\nWelcome to Poker hands!\n\n";
 	while (true)
@@ -913,7 +979,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	}
 	pokerdeck.SortHand(playercards);
 	pokerdeck.PrintHand(playercards);
-	pokerdeck.EvaluateHand(playercards);
+	evaluator.EvaluateHand(playercards);
 	while (swapordrawloop && swapsleft != 0)
 	{
 		while (true)
@@ -999,7 +1065,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			std::cout << "Your cards:\n";
 			pokerdeck.SortHand(playercards);
 			pokerdeck.PrintHand(playercards);
-			pokerdeck.EvaluateHand(playercards);
+			evaluator.EvaluateHand(playercards);
 			break;
 
 		case 2:
@@ -1036,7 +1102,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			currentcard++;
 			pokerdeck.SortHand(playercards);
 			pokerdeck.PrintHand(playercards);
-			pokerdeck.EvaluateHand(playercards);
+			evaluator.EvaluateHand(playercards);
 			break;
 
 		case 3:
@@ -1048,11 +1114,11 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	std::cout << "\nRevealing dealer's hand:\n";
 	pokerdeck.SortHand(dealercards);
 	pokerdeck.PrintHand(dealercards);
-	pokerdeck.EvaluateHand(dealercards);
+	evaluator.EvaluateHand(dealercards);
 	std::cout << "\nYour hand:\n";
 	pokerdeck.SortHand(playercards);
 	pokerdeck.PrintHand(playercards);
-	pokerdeck.EvaluateHand(playercards);
+	evaluator.EvaluateHand(playercards);
 }
 
 int main()
