@@ -12,7 +12,7 @@
 #include <unordered_map> //Comparison for card point scoring
 
 //To please the compiler, Player and Dealer must be declared above GameManager
-// Samecards problem: [2, 2, 2, 3, Q] says "highcard" but with a pair of 2s it works
+// Samecards problem: Joker value loop goes out of range with four of a kind [Jo, Jo, 9, 9, K]
 class Player
 {
 public:
@@ -95,11 +95,12 @@ public:
 	void SameCards(std::vector<int>&);
 	int EvaluateHand(std::vector<Card>&);
 	std::string TypeToString(int);
+	void TieBreaker(int, std::vector<Card>&, std::vector<Card>&);
 
 private:
 	Deck& deck_;
 	int jokers_ = 0, aces_ = 0, pairs_ = 0, biggestcard_ = NULL, smallestcard_ = NULL,
-		straightjokervalue_ = 0;
+		straightjokervalue_ = 0, samecardjokervalue_ = 0, sumofcards_ = 0;
 	std::vector<int> samecardvalues_;
 	bool straight_ = false, royalstraight_ = false, flush_ = false, threeofakind_ = false, fourofakind_ = false,
 		threeofakindjoker_ = false, fourofakindjoker_ = false, fiveofakindjoker_ = false;
@@ -203,9 +204,11 @@ void HandEvaluator::ResetEvaluator()
 	jokers_ = 0;
 	aces_ = 0;
 	pairs_ = 0;
-	straightjokervalue_ = 0;
 	biggestcard_ = NULL;
 	smallestcard_ = NULL;
+	straightjokervalue_ = 0;
+	samecardjokervalue_ = 0;
+	sumofcards_ = 0;
 	samecardvalues_.clear();
 
 	straight_ = false;
@@ -227,8 +230,8 @@ void HandEvaluator::SameCards(std::vector<int>& handvalues)
 	}
 	for (auto& i : valuecounts)
 	{
-		//DEBUG: std::cout << i.first << " : " << i.second << std::endl;
 		int amount = i.second, cardvalue = i.first;
+		std::cout << cardvalue << " : " << amount << std::endl;
 
 		if (amount == 5 && cardvalue == 0)
 		{
@@ -258,18 +261,25 @@ void HandEvaluator::SameCards(std::vector<int>& handvalues)
 			pairs_++;
 		}
 	}
-	/*DEBUG: if (samecardvalues_.empty())
+	std::cout << "Samecardvalues size: " << samecardvalues_.size() << "\n";
+	if (jokers_ > 0 && samecardvalues_.size() > 0)
 	{
-		std::cout << "Samecards is empty.\n";
-	}
-	else
-	{
-		for (int i : samecardvalues_)
+		int index = 0;
+		for (int i = jokers_; i >= samecardvalues_.size(); i--)
 		{
-			std::cout << "Same card: " << i << "\n";
+			std::cout << "Samecardvalues: " << samecardvalues_[index] << "\n";
+			samecardjokervalue_ += samecardvalues_[index];
+			index++;
 		}
-	}*/
-	
+	}
+	else if (jokers_ > 0 && samecardvalues_.size() == 0)
+	{
+		for (int i = jokers_; i > 0; i--)
+		{
+			samecardjokervalue_ += biggestcard_;
+		}
+	}
+	std::cout << "Samecardjokervalue: " << samecardjokervalue_ << "\n";
 }
 
 bool HandEvaluator::IsFlush(std::vector<Card> &pokerhand)
@@ -325,6 +335,7 @@ bool HandEvaluator::IsStraight(std::vector<int> &handvalues)
 			auto aceindex = std::find(handwithoutjokers.begin(), handwithoutjokers.end(), 14);
 			if (aceindex != handwithoutjokers.end())
 			{
+				sumofcards_ -= 13;
 				handwithoutjokers.erase(aceindex);
 				handwithoutjokers.emplace_back(1);
 				sort(handwithoutjokers.begin(), handwithoutjokers.end());
@@ -459,6 +470,7 @@ int HandEvaluator::EvaluateHand(std::vector<Card>& pokerhand)
 	smallestcard_ = 15; //15 to make it not count jokers
 	for (int i : handvalues)
 	{
+		sumofcards_ += i;
 		if (i > biggestcard_)
 		{
 			biggestcard_ = i;
@@ -516,7 +528,7 @@ int HandEvaluator::EvaluateHand(std::vector<Card>& pokerhand)
 	{
 		return 4;
 	}
-	else if ((pairs_ == 0 && jokers_ == 2) || (pairs_ == 1 && jokers_ == 1))
+	else if ((pairs_ == 0 && jokers_ == 2) || (pairs_ == 1 && jokers_ == 1) || (threeofakind_ && pairs_ == 0))
 	{
 		return 3;
 	}
@@ -592,6 +604,44 @@ std::string HandEvaluator::TypeToString(int handtype)
 
 	default:
 		return "Default case, something has gone terribly wrong..\n";
+		break;
+	}
+}
+
+void HandEvaluator::TieBreaker(int handtype, std::vector<Card> &playercards, std::vector<Card> &dealercards)
+{
+	int playersum = 0, dealersum = 0;
+	std::cout << "\n\033[4mTIE BREAKER\033[0m\n";
+	switch (handtype)
+	{
+	case 12:
+	case 10:
+	case 7:
+	case 3:
+	case 1:
+		break;
+
+	case 2:
+		break;
+
+	case 8:
+	case 4:
+		EvaluateHand(playercards);
+		playersum = sumofcards_ + straightjokervalue_;
+		EvaluateHand(dealercards);
+		dealersum = sumofcards_ + straightjokervalue_;
+		if (playersum > dealersum)
+		{
+			std::cout << "\033[32m\033[4mYour sum\033[0m " << playersum << " beats dealer's sum " << dealersum << "\n";
+		}
+		else if (playersum < dealersum)
+		{
+			std::cout << "\033[31m\033[4mDealer's sum\033[0m " << dealersum << " beats your sum " << playersum << "\n";
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same sum\n";
+		}
 		break;
 	}
 }
@@ -1187,7 +1237,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	std::cout << evaluator.TypeToString(playerhandvalue);
 	if (playerhandvalue == dealerhandvalue)
 	{
-
+		evaluator.TieBreaker(playerhandvalue, playercards, dealercards);
 	}
 	else if (playerhandvalue > dealerhandvalue)
 	{
