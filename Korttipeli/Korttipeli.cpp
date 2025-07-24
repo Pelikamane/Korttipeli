@@ -12,12 +12,14 @@
 #include <unordered_map> //Comparison for card point scoring
 
 //To please the compiler, Player and Dealer must be declared above GameManager
-// Samecards problem: Joker value loop goes out of range with four of a kind [Jo, Jo, 9, 9, K]
+
+// Pokerhands: Implement game loop and stop the erasing of the cards when swapping. Only 1 deck should be used the entire time.
+// QoL: if card swaps is set to 0, it should go straight to the round results
+// Samecardvalues_ probably doesn't need to be inside the class, only the function
 class Player
 {
 public:
-	int playerblackjackwins = 0;
-	int totalblackjacks = 0;
+	int playerblackjackwins = 0, totalblackjacks = 0, playerpokerwins_ = 0;
 private:
 
 };
@@ -25,7 +27,7 @@ private:
 class Dealer
 {
 public:
-	int dealerblackjackwins = 0;
+	int dealerblackjackwins = 0, dealerpokerwins_ = 0;
 
 private:
 
@@ -94,13 +96,13 @@ public:
 	bool IsRoyalStraight(std::vector<int>&);
 	void SameCards(std::vector<int>&);
 	int EvaluateHand(std::vector<Card>&);
-	std::string TypeToString(int);
-	void TieBreaker(int, std::vector<Card>&, std::vector<Card>&);
+	std::string TypeToString(int, bool);
+	int TieBreaker(int, std::vector<Card>&, std::vector<Card>&);
 
 private:
 	Deck& deck_;
 	int jokers_ = 0, aces_ = 0, pairs_ = 0, biggestcard_ = NULL, smallestcard_ = NULL,
-		straightjokervalue_ = 0, samecardjokervalue_ = 0, sumofcards_ = 0;
+		straightjokervalue_ = 0, sumofcards_ = 0, biggestsamecard_ = 0;
 	std::vector<int> samecardvalues_;
 	bool straight_ = false, royalstraight_ = false, flush_ = false, threeofakind_ = false, fourofakind_ = false,
 		threeofakindjoker_ = false, fourofakindjoker_ = false, fiveofakindjoker_ = false;
@@ -207,8 +209,8 @@ void HandEvaluator::ResetEvaluator()
 	biggestcard_ = NULL;
 	smallestcard_ = NULL;
 	straightjokervalue_ = 0;
-	samecardjokervalue_ = 0;
 	sumofcards_ = 0;
+	biggestsamecard_ = 0;
 	samecardvalues_.clear();
 
 	straight_ = false;
@@ -231,8 +233,7 @@ void HandEvaluator::SameCards(std::vector<int>& handvalues)
 	for (auto& i : valuecounts)
 	{
 		int amount = i.second, cardvalue = i.first;
-		std::cout << cardvalue << " : " << amount << std::endl;
-
+		//DEBUG: std::cout << cardvalue << " : " << amount << std::endl;
 		if (amount == 5 && cardvalue == 0)
 		{
 			fiveofakindjoker_ = true;
@@ -261,25 +262,19 @@ void HandEvaluator::SameCards(std::vector<int>& handvalues)
 			pairs_++;
 		}
 	}
-	std::cout << "Samecardvalues size: " << samecardvalues_.size() << "\n";
-	if (jokers_ > 0 && samecardvalues_.size() > 0)
+	for (int i : samecardvalues_)
 	{
-		int index = 0;
-		for (int i = jokers_; i >= samecardvalues_.size(); i--)
+		if (i > biggestsamecard_)
 		{
-			std::cout << "Samecardvalues: " << samecardvalues_[index] << "\n";
-			samecardjokervalue_ += samecardvalues_[index];
-			index++;
+			biggestsamecard_ = i;
+			//std::cout << "Biggest samecard is now: " << biggestsamecard_ << "\n";
 		}
 	}
-	else if (jokers_ > 0 && samecardvalues_.size() == 0)
+	//std::cout << "Samecardvalues size: " << samecardvalues_.size() << "\n";
+	if (jokers_ > 0 && samecardvalues_.size() == 0)
 	{
-		for (int i = jokers_; i > 0; i--)
-		{
-			samecardjokervalue_ += biggestcard_;
-		}
+		biggestsamecard_ = biggestcard_;
 	}
-	std::cout << "Samecardjokervalue: " << samecardjokervalue_ << "\n";
 }
 
 bool HandEvaluator::IsFlush(std::vector<Card> &pokerhand)
@@ -546,81 +541,194 @@ int HandEvaluator::EvaluateHand(std::vector<Card>& pokerhand)
 	}
 }
 
-std::string HandEvaluator::TypeToString(int handtype)
+std::string HandEvaluator::TypeToString(int handtype, bool scoringornot)
 {
-	switch (handtype)
+	if (scoringornot == false)
 	{
-	case 0:
-		return "Highcard..\n";
-		break;
+		switch (handtype)
+		{
+		case 0:
+			return "Highcard..\n";
+			break;
 
-	case 1:
-		return "Pair\n";
-		break;
+		case 1:
+			return "Pair\n";
+			break;
 
-	case 2:
-		return "Two pair\n";
-		break;
+		case 2:
+			return "Two pair\n";
+			break;
 
-	case 3:
-		return "Three of a kind\n";
-		break;
+		case 3:
+			return "Three of a kind\n";
+			break;
 
-	case 4:
-		return "Straight\n";
-		break;
+		case 4:
+			return "Straight\n";
+			break;
 
-	case 5:
-		return "Flush!\n";
-		break;
+		case 5:
+			return "Flush\n";
+			break;
 
-	case 6:
-		return "Full house!\n";
-		break;
+		case 6:
+			return "Full house!\n";
+			break;
 
-	case 7:
-		return "Four of a kind!!\n";
-		break;
+		case 7:
+			return "Four of a kind!\n";
+			break;
 
-	case 8:
-		return "Straight flush!!\n";
-		break;
+		case 8:
+			return "Straight flush!!\n";
+			break;
 
-	case 10:
-		return "FIVE OF A KIND!!!\n";
-		break;
+		case 10:
+			return "FIVE OF A KIND!!!\n";
+			break;
 
-	case 11:
-		return "ROYAL FLUSH!!!\n";
-		break;
+		case 11:
+			return "ROYAL FLUSH!!!\n";
+			break;
 
-	case 12:
-		return "FLUSH FIVE!!!!\n";
-		break;
+		case 12:
+			return "FLUSH FIVE!!!\n";
+			break;
 
-	case 13:
-		return "JOKER FIVE!!!!\n";
-		break;
+		case 13:
+			return "JOKER FIVE!!!!\n";
+			break;
 
-	default:
-		return "Default case, something has gone terribly wrong..\n";
-		break;
+		default:
+			return "Default case, something has gone terribly wrong..\n";
+			break;
+		}
+	}
+	else
+	{
+		switch (handtype)
+		{
+		case 0:
+			return "Highcard";
+			break;
+
+		case 1:
+			return "Pair";
+			break;
+
+		case 2:
+			return "Two pair";
+			break;
+
+		case 3:
+			return "Three of a kind";
+			break;
+
+		case 4:
+			return "Straight";
+			break;
+
+		case 5:
+			return "Flush";
+			break;
+
+		case 6:
+			return "Full house";
+			break;
+
+		case 7:
+			return "Four of a kind";
+			break;
+
+		case 8:
+			return "Straight flush";
+			break;
+
+		case 10:
+			return "Five of a kind";
+			break;
+
+		case 11:
+			return "Royal flush";
+			break;
+
+		case 12:
+			return "Flush five";
+			break;
+
+		case 13:
+			return "Joker five";
+			break;
+
+		default:
+			return "Default case, something has gone terribly wrong..\n";
+			break;
+		}
 	}
 }
 
-void HandEvaluator::TieBreaker(int handtype, std::vector<Card> &playercards, std::vector<Card> &dealercards)
+int HandEvaluator::TieBreaker(int handtype, std::vector<Card> &playercards, std::vector<Card> &dealercards)
 {
 	int playersum = 0, dealersum = 0;
 	std::cout << "\n\033[4mTIE BREAKER\033[0m\n";
 	switch (handtype)
 	{
+	case 0:
+	{
+		int playerhighcard = 0, dealerhighcard = 0;
+		std::string samehand = TypeToString(handtype, true);
+		EvaluateHand(playercards);
+		playerhighcard = biggestcard_;
+		EvaluateHand(dealercards);
+		dealerhighcard = biggestcard_;
+		if (playerhighcard > dealerhighcard)
+		{
+			std::cout << "\033[32m\033[4mYour\033[0m " << samehand << " " << playerhighcard << " beats dealer's " <<
+				samehand << " " << dealerhighcard << "\n";
+			return 1;
+		}
+		else if (playerhighcard < dealerhighcard)
+		{
+			std::cout << "\033[31m\033[4mDealer's\033[0m " << samehand << " " << dealerhighcard << " beats your " <<
+				samehand << " " << playerhighcard << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same " << samehand << " " << playerhighcard << "\n";
+		}
+		break;
+	}
 	case 12:
 	case 10:
 	case 7:
 	case 3:
 	case 1:
+	{
+		int playersamecard = 0, dealersamecard = 0;
+		std::string samehand = TypeToString(handtype, true);
+		EvaluateHand(playercards);
+		playersamecard = biggestsamecard_;
+		EvaluateHand(dealercards);
+		dealersamecard = biggestsamecard_;
+		if (playersamecard > dealersamecard)
+		{
+			std::cout << "\033[32m\033[4mYour\033[0m " << samehand << " " << playersamecard << " beats dealer's " <<
+				samehand << " " << dealersamecard << "\n";
+			return 1;
+		}
+		else if (playersamecard < dealersamecard)
+		{
+			std::cout << "\033[31m\033[4mDealer's\033[0m " << samehand << " " << dealersamecard << " beats your " << 
+				samehand << " " << playersamecard << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same " << samehand << " " << playersamecard << "\n";
+		}
 		break;
-
+	}
 	case 2:
 		break;
 
@@ -633,10 +741,12 @@ void HandEvaluator::TieBreaker(int handtype, std::vector<Card> &playercards, std
 		if (playersum > dealersum)
 		{
 			std::cout << "\033[32m\033[4mYour sum\033[0m " << playersum << " beats dealer's sum " << dealersum << "\n";
+			return 1;
 		}
 		else if (playersum < dealersum)
 		{
 			std::cout << "\033[31m\033[4mDealer's sum\033[0m " << dealersum << " beats your sum " << playersum << "\n";
+			return 0;
 		}
 		else
 		{
@@ -1002,6 +1112,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			break;
 
 		case 2:
+			std::cout << "Going back to the menu..\n";
 			gameloop = false;
 			break;
 
@@ -1015,13 +1126,42 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 void GameManager::Poker(Player& player, Dealer& dealer)
 {
 	std::vector<Card> dealercards, playercards;
-	bool swapordrawloop = true;
-	unsigned int currentcard = 0, jokeramount = 0, swapsleft = NULL, swapordraw = NULL, playerswap = NULL, dealerswap = NULL,
-		dealerhandvalue = NULL, playerhandvalue = NULL;
+	bool gameloop = true, swapordrawloop = true, scoringstring = false;
+	unsigned int totalrounds = 0, currentcard = 0, jokeramount = 0, swapsleft = 0, swapordraw = 0, playerswap = 0, dealerswap = 0,
+		dealerhandvalue = 0, playerhandvalue = 0;
 	Deck pokerdeck;
 	HandEvaluator evaluator(pokerdeck);
 
 	std::cout << "\nWelcome to Poker hands!\n\n";
+	/*while (gameloop)
+	{
+
+	}*/
+	while (true)
+	{
+		std::cout << "\nHow many rounds do you want to play: ";
+		std::cin >> totalrounds;
+		if (std::cin.fail())
+		{
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			std::cout << "Wrong input\n";
+			continue; //back to the top of the loop
+		}
+		else
+		{
+			if (totalrounds > 0)
+			{
+				std::cout << "\nGame will be " << totalrounds << " rounds long.\n";
+				break;
+			}
+			else
+			{
+				std::cout << "\nBack to the menu then.\n";
+				break;
+			}
+		}
+	}
 	while (true)
 	{
 		std::cout << "Number of jokers added: ";
@@ -1091,7 +1231,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	pokerdeck.SortHand(playercards);
 	pokerdeck.PrintHand(playercards);
 	playerhandvalue = evaluator.EvaluateHand(playercards);
-	std::cout << evaluator.TypeToString(playerhandvalue);
+	std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
 	while (swapordrawloop && swapsleft != 0)
 	{
 		while (true)
@@ -1178,7 +1318,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			pokerdeck.SortHand(playercards);
 			pokerdeck.PrintHand(playercards);
 			playerhandvalue = evaluator.EvaluateHand(playercards);
-			std::cout << evaluator.TypeToString(playerhandvalue);
+			std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
 			break;
 
 		case 2:
@@ -1216,7 +1356,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 			pokerdeck.SortHand(playercards);
 			pokerdeck.PrintHand(playercards);
 			playerhandvalue = evaluator.EvaluateHand(playercards);
-			std::cout << evaluator.TypeToString(playerhandvalue);
+			std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
 			break;
 
 		case 3:
@@ -1229,26 +1369,39 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 	pokerdeck.SortHand(dealercards);
 	pokerdeck.PrintHand(dealercards);
 	dealerhandvalue = evaluator.EvaluateHand(dealercards);
-	std::cout << evaluator.TypeToString(dealerhandvalue);
+	std::cout << evaluator.TypeToString(dealerhandvalue, scoringstring);
 	std::cout << "\nYour hand:\n";
 	pokerdeck.SortHand(playercards);
 	pokerdeck.PrintHand(playercards);
 	playerhandvalue = evaluator.EvaluateHand(playercards);
-	std::cout << evaluator.TypeToString(playerhandvalue);
+	std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
+	scoringstring = true;
 	if (playerhandvalue == dealerhandvalue)
 	{
-		evaluator.TieBreaker(playerhandvalue, playercards, dealercards);
+		int playerwin = evaluator.TieBreaker(playerhandvalue, playercards, dealercards);
+		if (playerwin == 0)
+		{
+			dealer.dealerpokerwins_++;
+		}
+		else if (playerwin == 1)
+		{
+			player.playerpokerwins_++;
+		}
 	}
 	else if (playerhandvalue > dealerhandvalue)
 	{
-		std::cout << "\n\033[4m\033[32mYou win\033[0m with " << evaluator.TypeToString(playerhandvalue) << "against dealer's " << evaluator.TypeToString(dealerhandvalue)
-			<< "\n";
+		std::cout << "\n\033[4m\033[32mYou win\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) << 
+			" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
+		player.playerpokerwins_++;
 	}
 	else
 	{
-		std::cout << "\n\033[4m\033[31mYou lost\033[0m with " << evaluator.TypeToString(playerhandvalue) << "against dealer's " << evaluator.TypeToString(dealerhandvalue)
-			<< "\n";
+		std::cout << "\n\033[4m\033[31mYou lost\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) << 
+			" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
+		dealer.dealerpokerwins_++;
 	}
+	std::cout << "\nGame score:\n\033[32mYou:\033[0m " << player.playerpokerwins_ << "\n\033[31mDealer:\033[0m " << 
+		dealer.dealerpokerwins_ << "\n\n";
 }
 
 int main()
