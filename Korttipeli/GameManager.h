@@ -14,6 +14,7 @@ public:
 	}
 	void Run();
 	void ShowRules();
+	void DevNotes();
 	void BlackJack(Player&, Dealer&);
 	void Poker(Player&, Dealer&);
 private:

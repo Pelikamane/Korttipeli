@@ -10,14 +10,15 @@
 
 void GameManager::Run()
 {
+	float programversion = 1.01;
 	int choice = 0;
 	Player player;
 	Dealer dealer;
 
-	while (choice != 4)
+	while (choice != 5)
 	{
-		std::cout << "\nCARD GAMES in C++" << std::endl << "by Otso\n\n";
-		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Quit\n\n";
+		std::cout << "\n\033[4mCARD GAMES in C++\033[0m\tversion " << programversion << "\nby Otso\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Dev notes\n5. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -48,8 +49,12 @@ void GameManager::Run()
 				ShowRules();
 				break;
 			}
-
 			case 4:
+			{
+				DevNotes();
+				break;
+			}
+			case 5:
 				std::cout << "Goodbye!\n";
 				break;
 
@@ -71,7 +76,7 @@ void GameManager::ShowRules()
 	{
 		std::cout << "\n\n\033[4mBlackjack rules:\033[0m\n\nA battle to reach the closest score to 21. Rounds end when you or the dealer go over 21\n\n\n";
 		std::cout << "\033[4mPoker hands rules:\033[0m\n\nYour goal is to create the best poker hand. "
-			"You can decide how many rounds to play, amount of jokers and card swaps\n\n\n";
+			"You can decide how many rounds to play, amount of jokers and card swaps\n\n";
 
 		while (true)
 		{
@@ -100,6 +105,34 @@ void GameManager::ShowRules()
 				}
 				showrules = false;
 				break;
+			}
+		}
+	}
+}
+
+void GameManager::DevNotes()
+{
+	bool shownotes = true;
+	int choice;
+	while (shownotes)
+	{
+		std::cout << "\n\033[4m7.8.2025\033[0m First build version of this program (v1.01) Has some issues with blackjack scoring (dealer hits at 21) "
+			"and some small spacing problems. Will be fixed in future versions along with more card games.\n\n";
+		while (true)
+		{
+			std::cout << "Input any number to go back to menu: ";
+			std::cin >> choice;
+			if (std::cin.good())
+			{
+				shownotes = false;
+				break;
+			}
+			else
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Wrong input\n";
+				continue;
 			}
 		}
 	}

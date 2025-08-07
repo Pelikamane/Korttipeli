@@ -1,15 +1,5 @@
-﻿#include <string>
-#include <limits> //for numeric_limits 
-#include <numeric>
-#include <vector>
-#include <iostream>
-#include <ios> //for <streamsize>
-#define NOMINMAX //needed for windows.h not to interrupt <limits>
-#include <Windows.h> //Probably not needed
-#include <chrono> //Seeds rng
-#include <random> //enables std::default_random_engine
-#include <algorithm> //enables std::shuffle
-#include <unordered_map> //Comparison for card point scoring
+﻿#define NOMINMAX //needed for windows.h not to interrupt <limits>
+#include <Windows.h>
 
 #include "Dealer.h"
 #include "Player.h"
