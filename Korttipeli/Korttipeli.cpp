@@ -1,5 +1,6 @@
 ﻿#include <string>
 #include <limits> //for numeric_limits 
+#include <numeric>
 #include <vector>
 #include <iostream>
 #include <ios> //for <streamsize>
@@ -10,14 +11,13 @@
 #include <algorithm> //enables std::shuffle
 #include <unordered_map> //Comparison for card point scoring
 
-const int maxCards = 52;
-
 //To please the compiler, Player and Dealer must be declared above GameManager
+
+// QoL: if card swaps is set to 0, it should go straight to the round results
 class Player
 {
 public:
-	int playerblackjackwins = 0;
-	int totalblackjacks = 0;
+	int playerblackjackwins = 0, totalblackjacks = 0, playerpokerwins_ = 0;
 private:
 
 };
@@ -25,7 +25,7 @@ private:
 class Dealer
 {
 public:
-	int dealerblackjackwins = 0;
+	int dealerblackjackwins = 0, dealerpokerwins_ = 0;
 
 private:
 
@@ -39,11 +39,805 @@ public:
 
 	}
 	void Run();
+	void ShowRules();
 	void BlackJack(Player&, Dealer&);
 	void Poker(Player&, Dealer&);
 private:
 
 };
+
+class Card
+{
+public:
+	std::string suit;
+	std::string value;
+
+	Card(std::string cardsuit, std::string cardvalue) : suit(cardsuit), value(cardvalue) {}
+
+	bool operator==(const Card& other) const //This overload is to enable find() on vectors of Card
+	{
+		return value == other.value && suit == other.suit;
+	}
+
+	void PrintCard()
+	{
+		std::cout << suit << value << std::endl;
+	}
+};
+
+class Deck
+{
+private:
+	std::vector<Card> deck; //Vector of the class Card: Each member is an object with a suit and a value
+
+public:
+	Deck();
+	void ShuffleDeck();
+	void PrintDeck();
+	void PrintHand(std::vector<Card>&);
+	void AddJokers(int);
+	void SortHand(std::vector<Card>&);
+	void PutCardFromHand(std::vector<Card>&, int);
+	void EraseOldCard(int);
+	int ValueToIntBlackjack(std::string, int);
+	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
+	{
+		return deck[index];
+	}
+	size_t Size()
+	{
+		return deck.size();
+	}
+};
+
+class HandEvaluator
+{
+public:
+	HandEvaluator(Deck& deck) : deck_(deck) {}
+	void ResetEvaluator();
+	bool IsFlush(std::vector<Card>&);
+	bool IsStraight(std::vector<int>&);
+	bool IsRoyalStraight(std::vector<int>&);
+	void SameCards(std::vector<int>&);
+	int EvaluateHand(std::vector<Card>&);
+	std::string TypeToString(int, bool);
+	int TieBreaker(int, std::vector<Card>&, std::vector<Card>&);
+
+private:
+	Deck& deck_;
+	int jokers_ = 0, aces_ = 0, pairs_ = 0, biggestcard_ = NULL, smallestcard_ = NULL,
+		straightjokervalue_ = 0, sumofcards_ = 0, biggestsamecard_ = 0;
+	std::vector<int> samecardvalues_; //For two pair and fullhouse tie breaker 
+	bool straight_ = false, royalstraight_ = false, flush_ = false, threeofakind_ = false, fourofakind_ = false,
+		threeofakindjoker_ = false, fourofakindjoker_ = false, fiveofakindjoker_ = false;
+
+};
+
+Deck::Deck()
+{
+	std::vector<std::string> suits = { u8"\033[35m\u2660\033[0m", u8"\033[31m\u2665\033[0m", u8"\033[91m\u2666\033[0m", u8"\033[95m\u2663\033[0m" }; //Order of janky bitches: spade, heart, diamond, club
+	std::vector<std::string> values = { "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" };
+
+	for (std::string& suit : suits)
+	{
+		for (std::string& value : values)
+		{
+			deck.emplace_back(suit, value);  //Creates an unshuffled deck of cards
+		}
+	}
+}
+
+void Deck::ShuffleDeck() //This is actual voodoo
+{
+	//Seed from the current system clock time (unsigned = only positive int = bigger range because the negatives are added to positives so int*2)
+	unsigned int seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+	//Random number generator made with a funny name (mt = Mersenne Twister) (19937 = exponent after the numbers start to repeat)
+	std::mt19937 rng(seed);
+
+	std::shuffle(deck.begin(), deck.end(), rng);
+	std::cout << "Current seed: " << seed << std::endl;
+}
+
+void Deck::PrintHand(std::vector<Card> &hand)
+{
+	for (Card card : hand)
+	{
+		card.PrintCard();
+	}
+}
+
+void Deck::PrintDeck()
+{
+	for (Card card : deck)
+	{
+		card.PrintCard();
+	}
+}
+
+void Deck::AddJokers(int jokeramount)
+{
+	for (int i = 0; i < jokeramount; i++)
+	{
+		deck.emplace_back(u8"\033[1m🃏\033[0m", "JOKER");
+	}
+}
+
+void Deck::SortHand(std::vector<Card> &pokerhand)
+{
+	static const std::unordered_map<std::string, int> valuemap = {
+		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
+		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
+		{"J", 11}, {"Q", 12}, {"K", 13},
+		{"A", 14}, {"JOKER", 0}
+	};
+	for (int i = 0; i < pokerhand.size() - 1; i++)
+	{
+		for (int y = 0; y < pokerhand.size() - i - 1; y++)
+		{
+			int foundvalue = valuemap.at(pokerhand[y].value);
+			int foundvalue2 = valuemap.at(pokerhand[y + 1].value);
+			if (foundvalue > foundvalue2)
+			{
+				std::swap(pokerhand[y], pokerhand[y + 1]);
+			}
+		}
+	}
+}
+
+void Deck::PutCardFromHand(std::vector<Card>& hand, int handindex)
+{
+	deck.emplace_back(std::move(hand[handindex]));
+}
+
+void Deck::EraseOldCard(int index)
+{
+	deck.erase(deck.begin() + index);
+}
+
+int Deck::ValueToIntBlackjack(std::string value, int score)
+{
+	static std::unordered_map<std::string, int> valuemap = {
+		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
+		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
+		{"J", 10}, {"Q", 10}, {"K", 10},
+		{"A", 11}
+	};
+	auto returnable = valuemap.find(value);
+	if (value == "A" && (score + 11) > 21)
+	{
+		return 1;
+	}
+	else
+	{
+		return (returnable != valuemap.end() ? returnable->second : 100); //(condition) ? value_true : value_false
+	}
+	//if the returnable is found before the search has gone beyond index -> assign the value to the int next to the string -> else assign default value 100
+}
+
+void HandEvaluator::ResetEvaluator()
+{
+	jokers_ = 0;
+	aces_ = 0;
+	pairs_ = 0;
+	biggestcard_ = NULL;
+	smallestcard_ = NULL;
+	straightjokervalue_ = 0;
+	sumofcards_ = 0;
+	biggestsamecard_ = 0;
+	samecardvalues_.clear();
+
+	straight_ = false;
+	royalstraight_ = false;
+	flush_ = false;
+	threeofakind_ = false;
+	fourofakind_ = false;
+	threeofakindjoker_ = false;
+	fourofakindjoker_ = false;
+	fiveofakindjoker_ = false;
+}
+
+void HandEvaluator::SameCards(std::vector<int>& handvalues)
+{
+	std::unordered_map<int, int> valuecounts;
+	for (int value : handvalues)
+	{
+		valuecounts[value]++;
+	}
+	for (auto& i : valuecounts)
+	{
+		int amount = i.second, cardvalue = i.first;
+		//DEBUG: std::cout << cardvalue << " : " << amount << std::endl;
+		if (amount == 5 && cardvalue == 0)
+		{
+			fiveofakindjoker_ = true;
+		}
+		else if (amount == 4 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			fourofakind_ = true;
+		}
+		else if (amount == 4 && cardvalue == 0)
+		{
+			fourofakindjoker_ = true;
+		}
+		else if (amount == 3 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			threeofakind_ = true;
+		}
+		else if (amount == 3 && cardvalue == 0)
+		{
+			threeofakindjoker_ = true;
+		}
+		else if (amount == 2 && cardvalue != 0)
+		{
+			samecardvalues_.emplace_back(cardvalue);
+			pairs_++;
+		}
+	}
+	for (int i : samecardvalues_)
+	{
+		if (i > biggestsamecard_)
+		{
+			biggestsamecard_ = i;
+			//std::cout << "Biggest samecard is now: " << biggestsamecard_ << "\n";
+		}
+	}
+	//std::cout << "Samecardvalues size: " << samecardvalues_.size() << "\n";
+	if (jokers_ > 0 && samecardvalues_.size() == 0)
+	{
+		biggestsamecard_ = biggestcard_;
+	}
+}
+
+bool HandEvaluator::IsFlush(std::vector<Card> &pokerhand)
+{
+	int samesuit = 0;
+	std::string firstsuit;
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		if (pokerhand[i].value != "JOKER")
+		{
+			firstsuit = pokerhand[i].suit;
+			break;
+		}
+	}
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		if ((firstsuit == pokerhand[i].suit) || (pokerhand[i].value == "JOKER"))
+		{
+			samesuit++;
+			if (samesuit == 5)
+			{
+				//DEBUG: std::cout << "Flush made with " << firstsuit << "\n";
+				return true;
+			}
+		}
+	}
+	//DEBUG: std::cout << "\nSama maa: " << samesuit << "\nValittu maa: " << firstsuit << "\n";
+	return false;
+}
+
+bool HandEvaluator::IsStraight(std::vector<int> &handvalues)
+{
+	int neededforstraight = 4, straightgaps = 0, secondbiggest;
+	bool islowstraightace = false;
+	std::vector<int> missingcards, handwithoutjokers;
+
+	for (int i : handvalues)
+	{
+		if (i > 1)
+		{
+			handwithoutjokers.emplace_back(i);
+			//std::cout << "value put into handwithoutjokers: " << i << "\n";
+		}
+	}
+	if (aces_ > 0)
+	{
+		int valuedifflowace = smallestcard_ - 1;
+		int valuediffhighace = biggestcard_ - handwithoutjokers[handwithoutjokers.size() - 2];
+		/*DEBUG: std::cout << "value diff low ace: " << valuedifflowace << "\n";
+		std::cout << "value diff high ace: " << valuediffhighace << "\n";*/
+		if (valuediffhighace > valuedifflowace)	
+		{
+			auto aceindex = std::find(handwithoutjokers.begin(), handwithoutjokers.end(), 14);
+			if (aceindex != handwithoutjokers.end())
+			{
+				sumofcards_ -= 13;
+				handwithoutjokers.erase(aceindex);
+				handwithoutjokers.emplace_back(1);
+				sort(handwithoutjokers.begin(), handwithoutjokers.end());
+				islowstraightace = true;
+			}
+		}
+	}
+	secondbiggest = handwithoutjokers[handwithoutjokers.size() - 2];
+	/*DEBUG: for (int i : handwithoutjokers)
+	{
+		std::cout << "handwithoutjokers: " << i << "\n";
+	}*/
+	for (int i = 0; i < handwithoutjokers.size() - 1; i++)
+	{
+		int valuedifference = handwithoutjokers[i + 1] - handwithoutjokers[i];
+		if (valuedifference == 1)
+		{
+			neededforstraight--;
+			if (neededforstraight == 0)
+			{
+				//std::cout << "Straight formed normally\n\n";
+				return true;
+			}
+		}
+		else if (valuedifference >= 2)
+		{
+			int gapsize = valuedifference - 1;
+			for (int gapvalue = handwithoutjokers[i] + 1; gapvalue < handwithoutjokers[i + 1]; gapvalue++)
+			{
+				//std::cout << "Value put into missingcards: " << gapvalue << "\n";
+				missingcards.push_back(gapvalue);
+			}
+		}
+	}
+	if (jokers_ > missingcards.size())
+	{
+		int index = 1, missingcardindex = 0, leftinmissingcards = missingcards.size();
+		for (int i = jokers_; i > 0; i--)
+		{
+			if (leftinmissingcards != 0)
+			{
+				straightjokervalue_ += missingcards[missingcardindex];
+				missingcardindex++;
+				leftinmissingcards--;
+				//std::cout << "Straight joker value if leftinmissing!=0: " << straightjokervalue_ << "\n";
+			}
+			else if (leftinmissingcards == 0)
+			{
+				if (biggestcard_ + index < 15)
+				{
+					straightjokervalue_ += (biggestcard_ + index);
+					//std::cout << "Straight joker value if != 14: " << straightjokervalue_ << "\n";
+					index++;
+				}
+				else if (islowstraightace)
+				{
+					straightjokervalue_ += (handwithoutjokers[handwithoutjokers.size() - 1] + index);
+					//std::cout << "straight joker value lowace: " << straightjokervalue_ << "\n";
+					index++;
+				}
+				else
+				{
+					straightjokervalue_ += (smallestcard_ - 1);
+					//std::cout << "Straight joker value else != 14: " << straightjokervalue_ << "\n";
+				}
+			}	
+		}
+		//std::cout << "Straight formed with joker\n\n";
+		return true;
+	}
+	else if (jokers_ == missingcards.size())
+	{
+		for (int i = 0; i < missingcards.size(); i++)
+		{
+			straightjokervalue_ += missingcards[i];
+			//std::cout << "Straight joker value if i==size: " << straightjokervalue_ << "\n";
+		}
+		//std::cout << "Straight formed with joker\n\n";
+		return true;
+	}
+	return false;
+}
+
+bool HandEvaluator::IsRoyalStraight(std::vector<int> &handvalues)
+{
+	std::vector<int> royalvalues = { 10, 11, 12, 13, 14 };
+	for (int i = 0; i < handvalues.size(); i++)
+	{
+		auto royalindex = find(royalvalues.begin(), royalvalues.end(), handvalues[i]);
+		if (royalindex != royalvalues.end())
+		{
+			//DEBUG: std::cout << "This element of royals removed: " << handvalues[i] << "\n";
+			royalvalues.erase(royalindex);
+			//DEBUG: std::cout << "The size of royalvalues = " << royalvalues.size() << "\n";
+		}
+	}
+	if (royalvalues.size() - jokers_ == 0)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+int HandEvaluator::EvaluateHand(std::vector<Card>& pokerhand)
+{
+	int handtype = NULL, jokervalue = NULL;
+	std::vector<int> handvalues;
+	static std::unordered_map<std::string, int> valuemap = {
+		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
+		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
+		{"J", 11}, {"Q", 12}, {"K", 13},
+		{"A", 14}, {"JOKER", 0}
+	};
+	ResetEvaluator();
+	for (int i = 0; i < pokerhand.size(); i++)
+	{
+		auto foundvalue = valuemap.find(pokerhand[i].value);
+		handvalues.emplace_back(foundvalue->second);
+		if (foundvalue->second == 0)
+		{
+			jokers_++;
+		}
+		else if (foundvalue->second == 14)
+		{
+			aces_++;
+		}
+	}
+	biggestcard_ = handvalues[0];
+	smallestcard_ = 15; //15 to make it not count jokers
+	for (int i : handvalues)
+	{
+		sumofcards_ += i;
+		if (i > biggestcard_)
+		{
+			biggestcard_ = i;
+		}
+		if (i < smallestcard_ && i != 0)
+		{
+			smallestcard_ = i;
+		}
+	}
+	//DEBUG: std::cout << "Biggest card: " << biggestcard_ << "\nSmallest card : " << smallestcard_ << "\n";
+	sort(handvalues.begin(), handvalues.end());
+	SameCards(handvalues);
+	flush_ = IsFlush(pokerhand);
+	if (pairs_ == 0 && threeofakind_ == false && fourofakind_ == false && fourofakindjoker_ == false && fiveofakindjoker_ == false) 
+	{
+		straight_ = IsStraight(handvalues);
+		if (straight_ == true)
+		{
+			royalstraight_ = IsRoyalStraight(handvalues);
+		}
+	}
+	if (fiveofakindjoker_)
+	{
+		return 13;
+	}
+	else if ((fourofakindjoker_) || (threeofakindjoker_ && pairs_ == 1 && flush_))
+	{
+		return 12;
+	}
+	else if (royalstraight_ && flush_)
+	{
+		return 11;
+	}
+	else if ((fourofakind_ && jokers_ == 1) || (threeofakind_ && jokers_ == 2) || (threeofakindjoker_ && pairs_ == 1))
+	{
+		return 10;
+	}
+	else if (flush_ && straight_)
+	{
+		return 8;
+	}
+	else if ((fourofakind_ && jokers_ == 0) || (threeofakind_ && jokers_ == 1) || (pairs_ == 1 && jokers_ == 2) || (threeofakindjoker_ && pairs_ == 0))
+	{
+		return 7;
+	}
+	else if ((threeofakind_ && pairs_ == 1) || (pairs_ == 2 && jokers_ == 1))
+	{
+		return 6;
+	}
+	else if (flush_ && !straight_)
+	{
+		return 5;
+	}
+	else if (straight_)
+	{
+		return 4;
+	}
+	else if ((pairs_ == 0 && jokers_ == 2) || (pairs_ == 1 && jokers_ == 1) || (threeofakind_ && pairs_ == 0))
+	{
+		return 3;
+	}
+	else if (pairs_ == 2 && jokers_ == 0)
+	{
+		return 2;
+	}
+	else if ((pairs_ == 1) || (pairs_ == 0 && jokers_ == 1))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+std::string HandEvaluator::TypeToString(int handtype, bool scoringornot)
+{
+	if (scoringornot == false)
+	{
+		switch (handtype)
+		{
+		case 0:
+			return "Highcard..\n";
+			break;
+
+		case 1:
+			return "Pair\n";
+			break;
+
+		case 2:
+			return "Two pair\n";
+			break;
+
+		case 3:
+			return "Three of a kind\n";
+			break;
+
+		case 4:
+			return "Straight\n";
+			break;
+
+		case 5:
+			return "Flush\n";
+			break;
+
+		case 6:
+			return "Full house!\n";
+			break;
+
+		case 7:
+			return "Four of a kind!\n";
+			break;
+
+		case 8:
+			return "Straight flush!!\n";
+			break;
+
+		case 10:
+			return "FIVE OF A KIND!!!\n";
+			break;
+
+		case 11:
+			return "ROYAL FLUSH!!!\n";
+			break;
+
+		case 12:
+			return "FLUSH FIVE!!!\n";
+			break;
+
+		case 13:
+			return "JOKER FIVE!!!!\n";
+			break;
+
+		default:
+			return "Default case, something has gone terribly wrong..\n";
+			break;
+		}
+	}
+	else
+	{
+		switch (handtype)
+		{
+		case 0:
+			return "Highcard";
+			break;
+
+		case 1:
+			return "Pair";
+			break;
+
+		case 2:
+			return "Two pair";
+			break;
+
+		case 3:
+			return "Three of a kind";
+			break;
+
+		case 4:
+			return "Straight";
+			break;
+
+		case 5:
+			return "Flush";
+			break;
+
+		case 6:
+			return "Full house";
+			break;
+
+		case 7:
+			return "Four of a kind";
+			break;
+
+		case 8:
+			return "Straight flush";
+			break;
+
+		case 10:
+			return "Five of a kind";
+			break;
+
+		case 11:
+			return "Royal flush";
+			break;
+
+		case 12:
+			return "Flush five";
+			break;
+
+		case 13:
+			return "Joker five";
+			break;
+
+		default:
+			return "Default case, something has gone terribly wrong..\n";
+			break;
+		}
+	}
+}
+
+int HandEvaluator::TieBreaker(int handtype, std::vector<Card> &playercards, std::vector<Card> &dealercards)
+{
+	std::string samehand = TypeToString(handtype, true);
+	std::cout << "\n\033[4mTIE BREAKER\033[0m\n";
+	switch (handtype)
+	{
+	case 0:
+	{
+		int playerhighcard = 0, dealerhighcard = 0;
+		EvaluateHand(playercards);
+		playerhighcard = biggestcard_;
+		EvaluateHand(dealercards);
+		dealerhighcard = biggestcard_;
+		if (playerhighcard > dealerhighcard)
+		{
+			std::cout << "\033[32m\033[4mYour\033[0m " << samehand << " " << playerhighcard << " beats dealer's " <<
+				samehand << " " << dealerhighcard << "\n";
+			return 1;
+		}
+		else if (playerhighcard < dealerhighcard)
+		{
+			std::cout << "\033[31m\033[4mDealer's\033[0m " << samehand << " " << dealerhighcard << " beats your " <<
+				samehand << " " << playerhighcard << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same " << samehand << " " << playerhighcard << "\n";
+		}
+		break;
+	}
+	case 12:
+	case 10:
+	case 7:
+	case 3:
+	case 1:
+	{
+		int playersamecard = 0, dealersamecard = 0;
+		EvaluateHand(playercards);
+		playersamecard = biggestsamecard_;
+		EvaluateHand(dealercards);
+		dealersamecard = biggestsamecard_;
+		if (playersamecard > dealersamecard)
+		{
+			std::cout << "\033[32m\033[4mYour\033[0m " << samehand << " " << playersamecard << " beats dealer's " <<
+				samehand << " " << dealersamecard << "\n";
+			return 1;
+		}
+		else if (playersamecard < dealersamecard)
+		{
+			std::cout << "\033[31m\033[4mDealer's\033[0m " << samehand << " " << dealersamecard << " beats your " <<
+				samehand << " " << playersamecard << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same " << samehand << " " << playersamecard << "\n";
+		}
+		break;
+	}
+	case 6:
+	case 2:
+	{
+		int playerpairsum = 0, dealerpairsum = 0;
+		EvaluateHand(playercards);
+		for (int i : samecardvalues_)
+		{
+			playerpairsum += i;
+		}
+		EvaluateHand(dealercards);
+		for (int i : samecardvalues_)
+		{
+			dealerpairsum += i;
+		}
+		if (playerpairsum > dealerpairsum)
+		{
+			std::cout << "\033[32m\033[4mYour sum\033[0m " << playerpairsum << " beats dealer's sum " << dealerpairsum << "\n";
+			return 1;
+		}
+		else if (playerpairsum < dealerpairsum)
+		{
+			std::cout << "\033[31m\033[4mDealer's sum\033[0m " << dealerpairsum << " beats your sum " << playerpairsum << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same sum\n";
+		}
+		break;
+	}
+	case 5:
+	{
+		int playerflushsum = 0, dealerflushsum = 0, jokeramount = 0;
+		EvaluateHand(playercards);
+		jokeramount = jokers_;
+		for (int i = 0; i < jokers_; i++)
+		{
+			playerflushsum += 14;
+		}
+		playerflushsum += sumofcards_;
+		EvaluateHand(dealercards);
+		jokeramount = jokers_;
+		for (int i = 0; i < jokers_; i++)
+		{
+			dealerflushsum += 14;
+		}
+		dealerflushsum += sumofcards_;
+		if (playerflushsum > dealerflushsum)
+		{
+			std::cout << "\033[32m\033[4mYour sum\033[0m " << playerflushsum << " beats dealer's sum " << dealerflushsum << "\n";
+			return 1;
+		}
+		else if (playerflushsum < dealerflushsum)
+		{
+			std::cout << "\033[31m\033[4mDealer's sum\033[0m " << dealerflushsum << " beats your sum " << playerflushsum << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same sum\n";
+		}
+		break;
+	}
+	case 8:
+	case 4:
+	{
+		int playerstraightsum = 0, dealerstraightsum = 0;
+		EvaluateHand(playercards);
+		playerstraightsum = sumofcards_ + straightjokervalue_;
+		EvaluateHand(dealercards);
+		dealerstraightsum = sumofcards_ + straightjokervalue_;
+		if (playerstraightsum > dealerstraightsum)
+		{
+			std::cout << "\033[32m\033[4mYour sum\033[0m " << playerstraightsum << " beats dealer's sum " << dealerstraightsum << "\n";
+			return 1;
+		}
+		else if (playerstraightsum < dealerstraightsum)
+		{
+			std::cout << "\033[31m\033[4mDealer's sum\033[0m " << dealerstraightsum << " beats your sum " << playerstraightsum << "\n";
+			return 0;
+		}
+		else
+		{
+			std::cout << "\033[33mDRAW!\033[0m\nBoth have the same sum\n";
+		}
+		break;
+	}
+	case 11:
+	case 13:
+	{
+		std::cout << "Both have " << samehand << ", tiebreak not possible\n";
+		break;
+	}
+	default:
+		std::cout << "Error in tiebreaker, unknown handtype\n";
+	}
+}
 
 void GameManager::Run()
 {
@@ -51,10 +845,10 @@ void GameManager::Run()
 	Player player;
 	Dealer dealer;
 
-	while (choice != 2)
+	while (choice != 4)
 	{
-		std::cout << "CARD GAMES in C++" << std::endl << "by Otso\n\n";
-		std::cout << "1. Blackjack\n" << "2. Quit\n\n";
+		std::cout << "\nCARD GAMES in C++" << std::endl << "by Otso\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -82,9 +876,13 @@ void GameManager::Run()
 
 			case 3:
 			{
-				std::cout << "Goodbye!\n";
+				ShowRules();
 				break;
 			}
+
+			case 4:
+				std::cout << "Goodbye!\n";
+				break;
 
 			default:
 			{
@@ -96,88 +894,46 @@ void GameManager::Run()
 	}
 }
 
-class Card
+void GameManager::ShowRules()
 {
-public:
-	std::string suit;
-	std::string value;
-
-	Card(std::string cardsuit, std::string cardvalue) : suit(cardsuit), value(cardvalue) {} //Fancy and efficient constructor (Why are the curly brackets needed)
-
-	void PrintCard()
+	bool showrules = true;
+	int rulesinput;
+	while (showrules == true)
 	{
-		std::cout << suit << value << std::endl;
-	}
-};
+		std::cout << "\n\n\033[4mBlackjack rules:\033[0m\n\nA battle to reach the closest score to 21. Rounds end when you or the dealer go over 21\n\n\n";
+		std::cout << "\033[4mPoker hands rules:\033[0m\n\nYour goal is to create the best poker hand. "
+			"You can decide how many rounds to play, amount of jokers and card swaps\n\n\n";
 
-class Deck
-{
-private:
-	std::vector<Card> deck; //Vector of the class Card: Each member is an object with a suit and a value
-
-public:
-	Deck();
-	void ShuffleDeck();
-	void PrintDeck();
-	int ValueToInt(std::string value, int);
-	Card& operator[](size_t index) //Operator overload to make it possible to access deck[x] (IMPORTANT)
-	{
-		return deck[index];
-	}
-};
-
-Deck::Deck()
-{
-	std::vector<std::string> suits = { u8"\u2660", u8"\u2665", u8"\u2666", u8"\u2663" }; //Order of janky bitches: spade, heart, diamond, club
-	std::vector<std::string> values = { "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" };
-
-	for (std::string& suit : suits)
-	{
-		for (std::string& value : values)
+		while (true)
 		{
-			deck.emplace_back(suit, value);  //Creates an unshuffled deck of cards
+			std::cout << "Input any number to go back: ";
+			std::cin >> rulesinput;
+			if (!std::cin.good())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Wrong input\n\n";
+				continue;
+			}
+			else
+			{
+				if (rulesinput == 69)
+				{
+					std::cout << "Nice.\n";
+				}
+				else if (rulesinput == 420)
+				{
+					std::cout << "Blaze that shit!\n";
+				}
+				else if (rulesinput == 42069 || rulesinput == 69420)
+				{
+					std::cout << "Ultimate combination!!\n";
+				}
+				showrules = false;
+				break;
+			}
 		}
 	}
-}
-
-void Deck::ShuffleDeck() //This is actual voodoo
-{
-	//Seed from the current system clock time (unsigned = only positive int = bigger range because the negatives are added to positives so int*2)
-	unsigned int seed = std::chrono::system_clock::now().time_since_epoch().count();
-
-	//Random number generator made with a funny name (mt = Mersenne Twister) (19937 = exponent after the numbers start to repeat)
-	std::mt19937 rng(seed);
-
-	std::shuffle(deck.begin(), deck.end(), rng);
-	std::cout << "Current seed: " << seed << std::endl;
-}
-
-void Deck::PrintDeck()
-{
-	for (Card card : deck)
-	{
-		card.PrintCard();
-	}
-}
-
-int Deck::ValueToInt(std::string value, int score)
-{
-	static std::unordered_map<std::string, int> valuemap = {
-		{"2", 2}, {"3", 3}, {"4", 4}, {"5", 5}, {"6", 6},
-		{"7", 7}, {"8", 8}, {"9", 9}, {"10", 10},
-		{"J", 10}, {"Q", 10}, {"K", 10},
-		{"A", 11}
-	};
-	auto returnable = valuemap.find(value); //Requires auto probably for type conversion
-	if (value == "A" && (score + 11) > 21)
-	{
-		return 1;
-	}
-	else
-	{
-		return (returnable != valuemap.end() ? returnable->second : 100); //(condition) ? value_true : value_false
-	}
-	//if the returnable is found before the search has gone beyond index -> assign the value to the int next to the string -> else assign default value 100
 }
 
 void GameManager::BlackJack(Player& player, Dealer& dealer)
@@ -199,7 +955,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 		for (int i = 0; i < 2; i++)
 		{
 			deck[currentcard].PrintCard();
-			dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+			dealerscore += deck.ValueToIntBlackjack(deck[currentcard].value, dealerscore);
 			dealercards.emplace_back(currentcard);
 			currentcard++;
 		}
@@ -213,7 +969,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 		for (int i = 0; i < 2; i++)
 		{
 			deck[currentcard].PrintCard();
-			playerscore += deck.ValueToInt(deck[currentcard].value, playerscore);
+			playerscore += deck.ValueToIntBlackjack(deck[currentcard].value, playerscore);
 			playercards.emplace_back(currentcard);
 			currentcard++;
 		}
@@ -228,7 +984,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			{
 				std::cout << "Dealer draws: ";
 				deck[currentcard].PrintCard();
-				dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+				dealerscore += deck.ValueToIntBlackjack(deck[currentcard].value, dealerscore);
 				dealercards.emplace_back(currentcard);
 				currentcard++;
 				std::cout << "Dealer's current hand value: " << dealerscore << "\n\n";
@@ -282,7 +1038,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			case 1:
 				std::cout << "\nYou draw a card: ";
 				deck[currentcard].PrintCard();
-				playerscore += deck.ValueToInt(deck[currentcard].value, playerscore);
+				playerscore += deck.ValueToIntBlackjack(deck[currentcard].value, playerscore);
 				playercards.emplace_back(currentcard);
 				currentcard++;
 				if (playerscore > 21)
@@ -309,7 +1065,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 					{
 						std::cout << "\nDealer draws a card: ";
 						deck[currentcard].PrintCard();
-						dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+						dealerscore += deck.ValueToIntBlackjack(deck[currentcard].value, dealerscore);
 						dealercards.emplace_back(currentcard);
 						currentcard++;
 						if (dealerscore == 21)
@@ -349,10 +1105,14 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 				{
 					std::cout << "\nDealer draws a card: ";
 					deck[currentcard].PrintCard();
-					dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+					dealerscore += deck.ValueToIntBlackjack(deck[currentcard].value, dealerscore);
 					dealercards.emplace_back(currentcard);
 					currentcard++;
 					std::cout << "Dealer's current hand value: " << dealerscore << "\n";
+					if (dealerscore == 21)
+					{
+						std::cout << "Blackjack!\n";
+					}
 					if (dealerscore > 21)
 					{
 						std::cout << "\nDealer busted, You win!\n";
@@ -370,7 +1130,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 				{
 					std::cout << "\nDealer draws a card: ";
 					deck[currentcard].PrintCard();
-					dealerscore += deck.ValueToInt(deck[currentcard].value, dealerscore);
+					dealerscore += deck.ValueToIntBlackjack(deck[currentcard].value, dealerscore);
 					dealercards.emplace_back(currentcard);
 					currentcard++;
 					std::cout << "Dealer's current hand value: " << dealerscore << "\n";
@@ -385,6 +1145,10 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 						player.playerblackjackwins++;
 						gameoverdealer = true;
 						break;
+					}
+					if (dealerscore == 21)
+					{
+						std::cout << "Blackjack!\n";
 					}
 					if (dealerscore == playerscore)
 					{
@@ -431,6 +1195,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			break;
 
 		case 2:
+			std::cout << "Going back to the menu..\n";
 			gameloop = false;
 			break;
 
@@ -443,11 +1208,437 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 
 void GameManager::Poker(Player& player, Dealer& dealer)
 {
-	int currentcard = 0;
+	std::vector<Card> dealercards, playercards;
+	bool selectionloop = true, gameover = false;
+	unsigned int maxrounds = 0, roundcounter = 1, jokeramount = 0, maxswaps = 0,
+		dealerhandvalue = 0, playerhandvalue = 0, gameoverchoice = 0;
 	Deck pokerdeck;
+	HandEvaluator evaluator(pokerdeck);
+	
+	std::cout << "\n\n\033[4mWelcome to Poker hands!\033[0m\n";
+	while (gameover == false)
+	{
+		bool swapordrawloop = true, scoringstring = false;
+		unsigned int currentcard = 0, swapordraw = 0, playerswap = 0, dealerswap = 0, swapsleft = maxswaps;
 
-	std::cout << "\nWelcome to pokerhands!\nYour goal is to create the best poker hand. You can exchange 3 cards ";
+		while (selectionloop)
+		{
+			while (true)
+			{
+				std::cout << "\nHow many rounds do you want to play: ";
+				std::cin >> maxrounds;
+				if (std::cin.fail())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Wrong input\n";
+					continue; //back to the top of the loop
+				}
+				else
+				{
+					if (maxrounds > 0)
+					{
+						if (maxrounds == 1)
+						{
+							std::cout << "Game will be " << maxrounds << " round long.\n\n";
+							break;
+						}
+						else
+						{
+							std::cout << "Game will be " << maxrounds << " rounds long.\n\n";
+							break;
+						}
 
+					}
+					else
+					{
+						std::cout << "Back to the menu then.\n\n"; //Fix
+						selectionloop = false;
+						gameover = true;
+						break;
+					}
+				}
+			}
+			while (true)
+			{
+				std::cout << "Number of jokers added: ";
+				std::cin >> jokeramount;
+				if (std::cin.fail())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Wrong input\n\n";
+					continue; //back to the top of the loop
+				}
+				else
+				{
+					if (jokeramount > 0)
+					{
+						if (jokeramount == 1)
+						{
+							pokerdeck.AddJokers(jokeramount);
+							std::cout << jokeramount << " joker added to the deck.\n\n";
+							break;
+						}
+						else
+						{
+							pokerdeck.AddJokers(jokeramount);
+							std::cout << jokeramount << " jokers added to the deck.\n\n";
+							break;
+						}
+					}
+					else
+					{
+						std::cout << "No jokers will be added to the deck.\n\n";
+						break;
+					}
+				}
+			}
+			while (true)
+			{
+				std::cout << "Number of card swaps allowed: ";
+				std::cin >> maxswaps;
+				if (std::cin.fail())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Wrong input\n";
+					continue; //back to the top of the loop
+				}
+				else
+				{
+					if (maxswaps > 0)
+					{
+						if (maxswaps == 1)
+						{
+							swapsleft = maxswaps;
+							std::cout << maxswaps << " swap is possible.\n\n";
+							break;
+						}
+						else
+						{
+							swapsleft = maxswaps;
+							std::cout << maxswaps << " swaps are possible.\n\n";
+							break;
+						}
+					}
+					else
+					{
+						std::cout << "No swaps will be possible.\n\n";
+						break;
+					}
+				}
+			}
+			selectionloop = false;
+		}
+		std::cout << "Round " << roundcounter << "/" << maxrounds << " starting now!\n";
+		pokerdeck.ShuffleDeck();
+		if (maxswaps != 0)
+		{
+			std::cout << "\nDealer's cards:\n";
+			for (int i = 0; i < 5; i++)
+			{
+				std::cout << "X\n";
+				dealercards.emplace_back(std::move(pokerdeck[currentcard]));
+				pokerdeck.EraseOldCard(currentcard);
+				currentcard++;
+			}
+			pokerdeck.SortHand(dealercards);
+			std::cout << "\nPlayer's cards:\n";
+			for (int i = 0; i < 5; i++)
+			{
+				playercards.emplace_back(std::move(pokerdeck[currentcard]));
+				pokerdeck.EraseOldCard(currentcard);
+				currentcard++;
+			}
+			pokerdeck.SortHand(playercards);
+			pokerdeck.PrintHand(playercards);
+			playerhandvalue = evaluator.EvaluateHand(playercards);
+			std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
+		}
+		else
+		{
+			for (int i = 0; i < 5; i++)
+			{
+				dealercards.emplace_back(std::move(pokerdeck[currentcard]));
+				pokerdeck.EraseOldCard(currentcard);
+				currentcard++;
+			}
+			pokerdeck.SortHand(dealercards);
+			for (int i = 0; i < 5; i++)
+			{
+				playercards.emplace_back(std::move(pokerdeck[currentcard]));
+				pokerdeck.EraseOldCard(currentcard);
+				currentcard++;
+			}
+			pokerdeck.SortHand(playercards);
+		}
+		while (swapordrawloop && swapsleft != 0)
+		{
+			while (true)
+			{
+				std::cout << "\nSwap cards with dealer (1)\nSwap cards from the deck (2)\nDo nothing (3)\n\nWhat would you like to do: ";
+				std::cin >> swapordraw;
+				if (!std::cin.good())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					std::cout << "Not a number.\n\n";
+					continue;
+				}
+				else
+				{
+					if (swapordraw != 1 && swapordraw != 2 && swapordraw != 3)
+					{
+						std::cout << "Wrong number.\n\n";
+						continue;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			switch (swapordraw)
+			{
+			case 1:
+				while (true)
+				{
+					std::cout << "\nSelect which card to swap with dealer (1-5): ";
+					std::cin >> playerswap;
+					if (!std::cin.good())
+					{
+						std::cin.clear();
+						std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+						std::cout << "Not a number.\n\n";
+						continue;
+					}
+					else
+					{
+						if (playerswap != 1 && playerswap != 2 && playerswap != 3 && playerswap != 4 && playerswap != 5)
+						{
+							std::cout << "Wrong selection.\n\n";
+							continue;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+				std::cout << "You picked: ";
+				playercards[playerswap - 1].PrintCard(); //The error handler takes care of the index range
+				while (true)
+				{
+					std::cout << "\nSelect a dealer's card to swap it with: ";
+					std::cin >> dealerswap;
+					if (!std::cin.good())
+					{
+						std::cin.clear();
+						std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+						std::cout << "Not a number.\n\n";
+						continue;
+					}
+					else
+					{
+						if (dealerswap != 1 && dealerswap != 2 && dealerswap != 3 && dealerswap != 4 && dealerswap != 5)
+						{
+							std::cout << "Wrong selection.\n\n";
+							continue;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+				std::swap(playercards[playerswap - 1], dealercards[dealerswap - 1]); //So convenient!
+				swapsleft--;
+				std::cout << "Swapping cards..\nSwaps left: " << swapsleft << "\n\n";
+				std::cout << "Your cards:\n";
+				pokerdeck.SortHand(playercards);
+				pokerdeck.PrintHand(playercards);
+				playerhandvalue = evaluator.EvaluateHand(playercards);
+				std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
+				break;
+
+			case 2:
+				while (true)
+				{
+					std::cout << "\nSelect which card to swap from the deck (1-5): ";
+					std::cin >> playerswap;
+					if (!std::cin.good())
+					{
+						std::cin.clear();
+						std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+						std::cout << "Not a number.\n\n";
+						continue;
+					}
+					else
+					{
+						if (playerswap < 0 || playerswap > 5)
+						{
+							std::cout << "Wrong selection.\n\n";
+							continue;
+						}
+						else
+						{
+							playerswap--;
+							break;
+						}
+					}
+				}
+				std::cout << "You picked: ";
+				playercards[playerswap].PrintCard();
+				swapsleft--;
+				std::cout << "Swapping card..\nSwaps left: " << swapsleft << "\n";
+				pokerdeck.PutCardFromHand(playercards, playerswap);
+				playercards.erase(playercards.begin() + playerswap);
+				playercards.emplace_back(std::move(pokerdeck[currentcard]));
+				pokerdeck.EraseOldCard(currentcard);
+				currentcard++;
+				pokerdeck.SortHand(playercards);
+				pokerdeck.PrintHand(playercards);
+				playerhandvalue = evaluator.EvaluateHand(playercards);
+				std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
+				break;
+
+			case 3:
+				swapordrawloop = false;
+				break;
+			}
+		}
+		std::cout << "\n" << roundcounter << ". \033[4mROUND RESULTS\033[0m\n";
+		std::cout << "\nRevealing dealer's hand:\n";
+		pokerdeck.SortHand(dealercards);
+		pokerdeck.PrintHand(dealercards);
+		dealerhandvalue = evaluator.EvaluateHand(dealercards);
+		std::cout << evaluator.TypeToString(dealerhandvalue, scoringstring);
+		std::cout << "\nYour hand:\n";
+		pokerdeck.SortHand(playercards);
+		pokerdeck.PrintHand(playercards);
+		playerhandvalue = evaluator.EvaluateHand(playercards);
+		std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
+		scoringstring = true;
+		if (playerhandvalue == dealerhandvalue)
+		{
+			int playerwin = evaluator.TieBreaker(playerhandvalue, playercards, dealercards);
+			if (playerwin == 0)
+			{
+				dealer.dealerpokerwins_++;
+			}
+			else if (playerwin == 1)
+			{
+				player.playerpokerwins_++;
+			}
+		}
+		else if (playerhandvalue > dealerhandvalue)
+		{
+			std::cout << "\n\033[4m\033[32mYou win\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) <<
+				" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
+			player.playerpokerwins_++;
+		}
+		else
+		{
+			std::cout << "\n\033[4m\033[31mYou lost\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) <<
+				" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
+			dealer.dealerpokerwins_++;
+		}
+		std::cout << "\nGame score:\n\033[32mYou:\033[0m " << player.playerpokerwins_ << "\n\033[31mDealer:\033[0m " <<
+			dealer.dealerpokerwins_ << "\n\n";
+		int handsize = playercards.size();
+		for (int i = 0; i < handsize; i++)
+		{
+			pokerdeck.PutCardFromHand(playercards, i);
+			pokerdeck.PutCardFromHand(dealercards, i);
+		}
+		playercards.clear();
+		dealercards.clear();
+		swapordrawloop = true;
+		scoringstring = false;
+		roundcounter++;
+		if (roundcounter > maxrounds)
+		{
+			{
+				std::cout << "\033[4mGame over\033[0m\n";
+				if (player.playerpokerwins_ > dealer.dealerpokerwins_)
+				{
+					std::cout << "\033[4m\033[32mYOU WON!\033[0m\n";
+				}
+				else if (player.playerblackjackwins < dealer.dealerpokerwins_)
+				{
+					std::cout << "\033[4m\033[31mYOU LOST!\033[0m\n";
+				}
+				else
+				{
+					std::cout << "\033[33mDRAW!\033[0m\n";
+				}
+				while (true)
+				{
+					std::cout << "\n1.Play again\n2.Main menu\nWhat would you like to do: ";
+					std::cin >> gameoverchoice;
+					if (!std::cin.good())
+					{
+						std::cin.clear();
+						std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+						continue;
+					}
+					else
+					{
+						if (gameoverchoice != 1 && gameoverchoice != 2)
+						{
+							std::cout << "Wrong input.\n";
+							continue;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+				if (gameoverchoice == 1)
+				{
+					std::cout << "Starting new game..\n";
+					player.playerpokerwins_ = 0;
+					dealer.dealerpokerwins_ = 0;
+					maxrounds = 0;
+					roundcounter = 1;
+					jokeramount = 0;
+					maxswaps = 0;
+					dealerhandvalue = 0;
+					playerhandvalue = 0,
+					selectionloop = true; 
+				}
+				else
+				{
+					player.playerpokerwins_ = 0;
+					dealer.dealerpokerwins_ = 0;
+					std::cout << "Returning back to menu..\n";
+					gameover = true;
+				}
+			}
+		}
+		else if (roundcounter <= maxrounds)
+		{
+			while (true)
+			{
+				int continuechoice;
+				std::cout << "Continue to the next round by inputting any number: ";
+				std::cin >> continuechoice;
+				if (!std::cin.good())
+				{
+					std::cin.clear();
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+					continue;
+				}
+				else
+				{
+					std::cout << "Moving to next round..\n\n";
+					break;
+				}
+			}
+		}
+	}
 }
 
 int main()
