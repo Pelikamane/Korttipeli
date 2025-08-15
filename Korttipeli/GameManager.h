@@ -4,6 +4,9 @@
 //Forward declarations
 class Player;
 class Dealer;
+class SaveManager;
+struct SaveDataPoker;
+struct SaveDataBlackjack;
 
 class GameManager
 {
@@ -14,9 +17,11 @@ public:
 	}
 	void Run();
 	void ShowRules();
+	void ShowStats(SaveManager&,SaveDataPoker&,SaveDataBlackjack&);
 	void DevNotes();
-	void BlackJack(Player&, Dealer&);
-	void Poker(Player&, Dealer&);
+	void SaveManagement(SaveManager&);
+	void BlackJack(Player&, Dealer&, SaveDataBlackjack&, SaveManager&);
+	void Poker(Player&, Dealer&, SaveDataPoker&, SaveManager&);
 private:
 
 };

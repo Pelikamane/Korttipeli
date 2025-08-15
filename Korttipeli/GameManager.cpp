@@ -4,6 +4,7 @@
 #include "Card.h"
 #include "Deck.h"
 #include "HandEvaluator.h"
+#include "SaveData.h"
 
 #include <iostream>
 #include <limits>
@@ -14,11 +15,17 @@ void GameManager::Run()
 	int choice = 0;
 	Player player;
 	Dealer dealer;
+	SaveManager savemanager;
+	SaveDataPoker pokersave;
+	SaveDataBlackjack blackjacksave;
+	
 
-	while (choice != 5)
+	while (choice != 7)
 	{
+		bool ispokerfilevalid = savemanager.LoadPokerData(pokersave);
+		bool isblackjackfilevalid = savemanager.LoadBlackjackData(blackjacksave);
 		std::cout << "\n\033[4mCARD GAMES in C++\033[0m\tversion " << programversion << "\nby Otso\n\n";
-		std::cout << "1. Blackjack\n2. Poker hands\n3. Game rules\n4. Dev notes\n5. Quit\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Statistics\n4. Game rules\n5. Dev notes\n6. Save manager\n7. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -34,27 +41,53 @@ void GameManager::Run()
 			{
 			case 1:
 			{
-				BlackJack(player, dealer);
+				BlackJack(player, dealer, blackjacksave, savemanager);
 				break;
 			}
 
 			case 2:
 			{
-				Poker(player, dealer);
+				Poker(player, dealer, pokersave, savemanager);
 				break;
 			}
-
 			case 3:
+				if (ispokerfilevalid == true && isblackjackfilevalid == true)
+				{
+					ShowStats(savemanager, pokersave, blackjacksave);
+					break;
+				}
+				else
+				{
+					if (ispokerfilevalid == false)
+					{
+						std::cout << "Can't show statistics. Poker savefile is empty or has an error\n";
+					}
+					else if (isblackjackfilevalid == false)
+					{
+						std::cout << "Can't show statistics. Blackjack savefile is empty or has an error\n";
+					}
+					else
+					{
+						std::cout << "Can't show statistics. Both savefiles are empty\n";
+					}
+					break;
+				}
+			case 4:
 			{
 				ShowRules();
 				break;
 			}
-			case 4:
+			case 5:
 			{
 				DevNotes();
 				break;
 			}
-			case 5:
+			case 6:
+			{
+				SaveManagement(savemanager);
+				break;
+			}
+			case 7:
 				std::cout << "Goodbye!\n";
 				break;
 
@@ -110,6 +143,41 @@ void GameManager::ShowRules()
 	}
 }
 
+void GameManager::ShowStats(SaveManager& savemanager, SaveDataPoker& pokersave, SaveDataBlackjack& blackjsave)
+{
+	float winpercentpoker;
+	float winpercentblackjack;
+	if (pokersave.wins_ == 0 && pokersave.totalgames_ == 0)
+	{
+		winpercentpoker = 0;
+	}
+	else
+	{
+		winpercentpoker = (static_cast<float>(pokersave.wins_) / pokersave.totalgames_) * 100;
+	}
+	if (blackjsave.wins_ == 0 && blackjsave.totalgames_ == 0)
+	{
+		winpercentblackjack = 0;
+	}
+	else
+	{
+		winpercentblackjack = (static_cast<float>(blackjsave.wins_) / blackjsave.totalgames_) * 100;
+	}
+	std::cout << "\033[4mPoker stats:\033[0m\n";
+	std::cout << "Win percentage --> " << winpercentpoker << "%\n";
+	std::cout << "Total games --> " << pokersave.totalgames_ << "\nWins --> " << pokersave.wins_ << "\n\nHigh cards --> " << pokersave.highcard_ <<
+		"\nPairs --> " << pokersave.pair_ << "\nTwo pairs --> " << pokersave.twopair_ << "\nThree of a kinds --> " << pokersave.three_ << 
+		"\nStraights --> " << pokersave.straight_ << "\nFlushes --> " << pokersave.flush_ << "\nFull houses --> " << pokersave.fullhouse_ << 
+		"\nFour of a kinds --> " << pokersave.four_ << "\nStraight flushes --> " << pokersave.straightflush_ << 
+		"\nRoyal flushes --> " << pokersave.royalflush_ << "\nFive of a kinds --> " << pokersave.five_ << 
+		"\nFlush fives --> " << pokersave.flushfive_ << "\nJoker fives --> " << pokersave.jokerfive_ << "\n";
+
+	std::cout << "\n\033[4mBlackjack stats:\033[0m\n";
+	std::cout << "Win percentage --> " << winpercentblackjack << " %\n";
+	std::cout << "Total games --> " << blackjsave.totalgames_ << "\nWins --> " << blackjsave.wins_ << "\nDraws --> " << blackjsave.draws_ <<
+		"\nBlackjacks --> " << blackjsave.blackjacks_ << "\n";
+}
+
 void GameManager::DevNotes()
 {
 	bool shownotes = true;
@@ -138,7 +206,81 @@ void GameManager::DevNotes()
 	}
 }
 
-void GameManager::BlackJack(Player& player, Dealer& dealer)
+void GameManager::SaveManagement(SaveManager& savemanager)
+{
+	int choice;
+	std::cout << "\n\033[4mYou can delete savefiles here\033[0m\n\n";
+	std::cout << "(1) Delete Blackjack save\n(2) Delete Poker save\n(3) Delete both\n(4) Main menu\n";
+	while (true)
+	{
+		std::cout << "What would you like to do: ";
+		std::cin >> choice;
+		if (!std::cin.good())
+		{
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			std::cout << "Wrong input\n";
+			continue;
+		}
+		else
+		{
+			if (choice < 1 || choice > 4)
+			{
+				std::cout << "Invalid number\n";
+				continue;
+			}
+			else
+			{
+				switch (choice)
+				{
+				case 1:
+					std::cout << "This feature has not yet been implemented!\n";
+					break;
+				case 2:
+				{
+					while (true)
+					{
+						char deletedata;
+						std::cout << "Are you sure that you want to delete this data? (y/n): ";
+						std::cin >> deletedata;
+						if (!std::cin.good())
+						{
+							std::cout << "Wrong input\n";
+							continue;
+						}
+						else if ((deletedata != 'y' && deletedata != 'Y') && (deletedata != 'n' && deletedata != 'N'))
+						{
+							std::cout << "Wrong letter\n";
+							continue;
+						}
+						else if (deletedata == 'y' || deletedata == 'Y')
+						{
+							savemanager.ClearPokerSaveData();
+							break;
+						}
+						else
+						{
+							std::cout << "Poker data has been \033[3msaved\033[0m :D\n";
+							break;
+						}
+					}
+					break;
+				}	
+				case 3:
+					std::cout << "This feature has not yet been implemented either!\n";
+					break;
+				case 4:
+					std::cout << "Going back to menu..\n";
+					break;
+				}	
+			}
+		}
+		std::cout << "Returning back to menu..\n";
+		break;
+	}
+}
+
+void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& savedata, SaveManager& savemanager)
 {
 	bool gameloop = true;
 	Deck deck;
@@ -180,6 +322,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 		{
 			gameoverdealer = true; //Skip hit or stand
 			player.totalblackjacks++;
+			savedata.blackjacks_++;
 			std::cout << "Blackjack!\n\n";
 
 			while (dealerscore < 21)
@@ -194,6 +337,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			if (dealerscore == 21)
 			{
 				std::cout << "Blackjack for both!\nIt's a draw!!";
+				savedata.draws_++;
 				player.playerblackjackwins++;
 				dealer.dealerblackjackwins++;
 			}
@@ -205,6 +349,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 				{
 					deck[cardindex].PrintCard();
 				}
+				savedata.wins_++;
 				player.playerblackjackwins++;
 				gameoverdealer = true;
 			}
@@ -259,6 +404,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 				{
 					if (playerscore == 21) //Displays the blackjack! message, could be more elegantly done
 					{
+						savedata.blackjacks_++;
 						player.totalblackjacks++;
 						std::cout << "Blackjack!\n";
 					}
@@ -283,6 +429,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 							{
 								deck[cardindex].PrintCard();
 							}
+							savedata.wins_++;
 							player.playerblackjackwins++;
 							gameoverdealer = true;
 						}
@@ -323,6 +470,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 						{
 							deck[cardindex].PrintCard();
 						}
+						savedata.wins_++;
 						player.playerblackjackwins++;
 						gameoverdealer = true;
 						break;
@@ -344,6 +492,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 						{
 							deck[cardindex].PrintCard();
 						}
+						savedata.wins_++;
 						player.playerblackjackwins++;
 						gameoverdealer = true;
 						break;
@@ -355,6 +504,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 					if (dealerscore == playerscore)
 					{
 						std::cout << "It's a draw!\n\n";
+						savedata.draws_++;
 						gameoverdealer = true;
 						gameoverplayer = true;
 						break;
@@ -367,6 +517,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 			}
 		}
 		std::cout << "\nCurrent game score: Dealer " << dealer.dealerblackjackwins << " Player " << player.playerblackjackwins << "\n\n";
+		savedata.totalgames_++;
 		while (true)
 		{
 			std::cout << "Play again (1) or quit (2): ";
@@ -398,6 +549,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 
 		case 2:
 			std::cout << "Going back to the menu..\n";
+			savemanager.SaveBlackjackData(savedata);
 			gameloop = false;
 			break;
 
@@ -408,7 +560,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer)
 	}
 }
 
-void GameManager::Poker(Player& player, Dealer& dealer)
+void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave, SaveManager& savemanager)
 {
 	std::vector<Card> dealercards, playercards;
 	bool selectionloop = true, gameover = false;
@@ -722,6 +874,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 		playerhandvalue = evaluator.EvaluateHand(playercards);
 		std::cout << evaluator.TypeToString(playerhandvalue, scoringstring);
 		scoringstring = true;
+		savemanager.PokerDataToStruct(pokersave, playerhandvalue);
 		if (playerhandvalue == dealerhandvalue)
 		{
 			int playerwin = evaluator.TieBreaker(playerhandvalue, playercards, dealercards);
@@ -765,6 +918,7 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 				std::cout << "\033[4mGame over\033[0m\n";
 				if (player.playerpokerwins_ > dealer.dealerpokerwins_)
 				{
+					pokersave.wins_++;
 					std::cout << "\033[4m\033[32mYOU WON!\033[0m\n";
 				}
 				else if (player.playerblackjackwins < dealer.dealerpokerwins_)
@@ -775,6 +929,8 @@ void GameManager::Poker(Player& player, Dealer& dealer)
 				{
 					std::cout << "\033[33mDRAW!\033[0m\n";
 				}
+				pokersave.totalgames_++;
+				savemanager.SavePokerData(pokersave);
 				while (true)
 				{
 					std::cout << "\n1.Play again\n2.Main menu\nWhat would you like to do: ";
