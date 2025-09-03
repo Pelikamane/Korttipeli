@@ -387,7 +387,7 @@ std::string HandEvaluator::TypeToString(int handtype, bool scoringornot)
 		case 8:
 			return "Straight flush!!\n";
 			break;
-
+		
 		case 10:
 			return "FIVE OF A KIND!!!\n";
 			break;

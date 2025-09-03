@@ -22,7 +22,7 @@ public:
 	bool LoadBlackjackData(SaveDataBlackjack&);
 	void PokerDataToStruct(SaveDataPoker&, const int&);
 	void ClearPokerSaveData() const;
-	
+	void ClearBlackjackSaveData() const;
 
 private:
 	std::string pokersavelocation_ = "PokerData.txt";

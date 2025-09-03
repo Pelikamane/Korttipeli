@@ -34,22 +34,25 @@ bool SaveManager::LoadPokerData(SaveDataPoker& savedata)
 	}
 	else if (readdata.is_open())
 	{
-		std::cout << "\nSavefile opened!\n";
+		//std::cout << "\nSavefile opened!\n";
 		readdata.seekg(0, std::ios::end);
 		if (readdata.tellg() == 0)
 		{
-			std::cout << "Save file is empty.\n";
+			//std::cout << "Save file is empty.\n";
 			readdata.close();
+			savedata.totalgames_ = 0, savedata.wins_ = 0, savedata.highcard_ = 0, savedata.pair_ = 0, savedata.twopair_ = 0,
+				savedata.three_ = 0, savedata.straight_ = 0, savedata.flush_ = 0, savedata.fullhouse_ = 0, savedata.four_ = 0,
+				savedata.straightflush_ = 0, savedata.royalflush_ = 0, savedata.five_ = 0, savedata.flushfive_ = 0, savedata.jokerfive_ = 0;
 			return false;
 		}
 		readdata.seekg(0, std::ios::beg);
-		std::cout << "File is not empty.\n";
+		//std::cout << "File is not empty.\n";
 		readdata >> savedata.totalgames_ >> savedata.wins_ >> savedata.highcard_ >> savedata.pair_ >> savedata.twopair_ >>
 			savedata.three_ >> savedata.straight_ >> savedata.flush_ >> savedata.fullhouse_ >>
 			savedata.four_ >> savedata.straightflush_ >> savedata.royalflush_ >> savedata.five_ >>
 			savedata.flushfive_ >> savedata.jokerfive_;
 		readdata.close();
-		std::cout << "Data is fetched\n";
+		//std::cout << "Data is fetched\n";
 		return true;
 	}
 }
@@ -81,18 +84,19 @@ bool SaveManager::LoadBlackjackData(SaveDataBlackjack& savedata)
 	}
 	else if (readdata.is_open())
 	{
-		std::cout << "\nBlackjack save opened";
+		//std::cout << "\nBlackjack save opened";
 		readdata.seekg(0, std::ios::end);
 		if (readdata.tellg() == 0)
 		{
-			std::cout << "\nBlackjack save is empty.\n";
+			//std::cout << "\nBlackjack save is empty.\n";
 			readdata.close();
+			savedata.totalgames_ = 0, savedata.wins_ = 0, savedata.draws_ = 0, savedata.blackjacks_ = 0;
 			return false;
 		}
-		std::cout << "\nblackjack file is not empty.\n";
-		readdata >> savedata.totalgames_ >> savedata.wins_ >> savedata.draws_ >>savedata.blackjacks_;
+		//std::cout << "\nblackjack file is not empty.\n";
+		readdata >> savedata.totalgames_ >> savedata.wins_ >> savedata.draws_ >> savedata.blackjacks_;
 		readdata.close();
-		std::cout << "Blackjack data is fetched\n";
+		//std::cout << "Blackjack data is fetched\n";
 		return true;
 	}
 }
@@ -149,4 +153,10 @@ void SaveManager::ClearPokerSaveData() const
 {
 	std::ofstream(pokersavelocation_, std::ios::trunc);
 	std::cout << "Poker data has been cleared!\n";
+}
+
+void SaveManager::ClearBlackjackSaveData() const
+{
+	std::ofstream(blackjacksavelocation_, std::ios::trunc);
+	std::cout << "Blackjack data has been cleared!\n";
 }

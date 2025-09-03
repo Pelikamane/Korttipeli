@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <limits>
+#include <iomanip>
 
 void GameManager::Run()
 {
@@ -51,27 +52,10 @@ void GameManager::Run()
 				break;
 			}
 			case 3:
-				if (ispokerfilevalid == true && isblackjackfilevalid == true)
-				{
-					ShowStats(savemanager, pokersave, blackjacksave);
-					break;
-				}
-				else
-				{
-					if (ispokerfilevalid == false)
-					{
-						std::cout << "Can't show statistics. Poker savefile is empty or has an error\n";
-					}
-					else if (isblackjackfilevalid == false)
-					{
-						std::cout << "Can't show statistics. Blackjack savefile is empty or has an error\n";
-					}
-					else
-					{
-						std::cout << "Can't show statistics. Both savefiles are empty\n";
-					}
-					break;
-				}
+			{
+				ShowStats(savemanager, pokersave, blackjacksave);
+				break;
+			}	
 			case 4:
 			{
 				ShowRules();
@@ -164,6 +148,7 @@ void GameManager::ShowStats(SaveManager& savemanager, SaveDataPoker& pokersave, 
 		winpercentblackjack = (static_cast<float>(blackjsave.wins_) / blackjsave.totalgames_) * 100;
 	}
 	std::cout << "\033[4mPoker stats:\033[0m\n";
+	std::cout << std::fixed << std::setprecision(2);
 	std::cout << "Win percentage --> " << winpercentpoker << "%\n";
 	std::cout << "Total games --> " << pokersave.totalgames_ << "\nWins --> " << pokersave.wins_ << "\n\nHigh cards --> " << pokersave.highcard_ <<
 		"\nPairs --> " << pokersave.pair_ << "\nTwo pairs --> " << pokersave.twopair_ << "\nThree of a kinds --> " << pokersave.three_ << 
@@ -173,7 +158,7 @@ void GameManager::ShowStats(SaveManager& savemanager, SaveDataPoker& pokersave, 
 		"\nFlush fives --> " << pokersave.flushfive_ << "\nJoker fives --> " << pokersave.jokerfive_ << "\n";
 
 	std::cout << "\n\033[4mBlackjack stats:\033[0m\n";
-	std::cout << "Win percentage --> " << winpercentblackjack << " %\n";
+	std::cout << "Win percentage --> " << winpercentblackjack << "%\n";
 	std::cout << "Total games --> " << blackjsave.totalgames_ << "\nWins --> " << blackjsave.wins_ << "\nDraws --> " << blackjsave.draws_ <<
 		"\nBlackjacks --> " << blackjsave.blackjacks_ << "\n";
 }
@@ -234,14 +219,41 @@ void GameManager::SaveManagement(SaveManager& savemanager)
 				switch (choice)
 				{
 				case 1:
-					std::cout << "This feature has not yet been implemented!\n";
+				{
+					while (true)
+					{
+						char deletedata;
+						std::cout << "Are you sure that you want to delete the blackjack data? (y/n): ";
+						std::cin >> deletedata;
+						if (!std::cin.good())
+						{
+							std::cout << "Wrong input\n";
+							continue;
+						}
+						else if ((deletedata != 'y' && deletedata != 'Y') && (deletedata != 'n' && deletedata != 'N'))
+						{
+							std::cout << "Wrong letter\n";
+							continue;
+						}
+						else if (deletedata == 'y' || deletedata == 'Y')
+						{
+							savemanager.ClearBlackjackSaveData();
+							break;
+						}
+						else
+						{
+							std::cout << "Blackjack data is \033[3mback in black\033[0m\n";
+							break;
+						}
+					}
 					break;
+				}
 				case 2:
 				{
 					while (true)
 					{
 						char deletedata;
-						std::cout << "Are you sure that you want to delete this data? (y/n): ";
+						std::cout << "Are you sure that you want to delete the poker data? (y/n): ";
 						std::cin >> deletedata;
 						if (!std::cin.good())
 						{
@@ -267,8 +279,36 @@ void GameManager::SaveManagement(SaveManager& savemanager)
 					break;
 				}	
 				case 3:
-					std::cout << "This feature has not yet been implemented either!\n";
+				{
+					while (true)
+					{
+						char deletedata;
+						std::cout << "Are you sure that you want to delete both saves? (y/n): ";
+						std::cin >> deletedata;
+						if (!std::cin.good())
+						{
+							std::cout << "Wrong input\n";
+							continue;
+						}
+						else if ((deletedata != 'y' && deletedata != 'Y') && (deletedata != 'n' && deletedata != 'N'))
+						{
+							std::cout << "Wrong letter\n";
+							continue;
+						}
+						else if (deletedata == 'y' || deletedata == 'Y')
+						{
+							savemanager.ClearPokerSaveData();
+							savemanager.ClearBlackjackSaveData();
+							break;
+						}
+						else
+						{
+							std::cout << "All save files have been saved\n";
+							break;
+						}
+					}
 					break;
+				}
 				case 4:
 					std::cout << "Going back to menu..\n";
 					break;
