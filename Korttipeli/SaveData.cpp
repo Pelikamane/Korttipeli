@@ -101,6 +101,48 @@ bool SaveManager::LoadBlackjackData(SaveDataBlackjack& savedata)
 	}
 }
 
+bool SaveManager::SaveMoneyData(const Money& playermoney)
+{
+	std::fstream writedata(moneysavelocation_, std::ios::out);
+	if (!writedata.is_open())
+	{
+		std::cout << "Error: money save doesn't exist\n";
+		return false;
+	}
+	else
+	{
+		writedata << playermoney.money_ << "\n" << playermoney.highscore_ << "\n" << playermoney.biggestbet_;
+		writedata.close();
+	}
+	return true;
+}
+
+bool SaveManager::LoadMoneyData(Money& playermoney)
+{
+	std::fstream readdata(moneysavelocation_, std::ios::in);
+	if (!readdata.is_open())
+	{
+		std::cout << "Money data doesn't exist, creating one\n";
+		std::fstream createsave(moneysavelocation_, std::ios::out);
+		createsave.close();
+	}
+	else if (readdata.is_open())
+	{
+		std::cout << "\nMoney save opened";
+		readdata.seekg(0, std::ios::end);
+		if (readdata.tellg() == 0)
+		{
+			std::cout << "Money file empty\n";
+			readdata.close();
+			playermoney.money_ = 1000, playermoney.highscore_ = 0, playermoney.biggestbet_ = 0;
+			return false;
+		}
+		readdata >> playermoney.money_ >> playermoney.highscore_ >> playermoney.biggestbet_;
+		readdata.close();
+		return true;
+	}
+}
+
 void SaveManager::PokerDataToStruct(SaveDataPoker& pokersave, const int& handtype)
 {
 	switch (handtype)

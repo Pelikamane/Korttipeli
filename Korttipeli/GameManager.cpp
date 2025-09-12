@@ -460,7 +460,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& s
 						currentcard++;
 						if (dealerscore == 21)
 						{
-							std::cout << "Blackjack!\n";
+							std::cout << "\033[33mBlackjack!\033[0m\n";
 						}
 						std::cout << "Dealer's current hand value: " << dealerscore << "\n";
 						if (dealerscore > 21)
@@ -494,7 +494,7 @@ void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& s
 					gameoverplayer = true;
 
 				}
-				if (playerscore == dealerscore)
+				if ((playerscore == dealerscore) && (dealerscore != 21))
 				{
 					std::cout << "\nDealer draws a card: ";
 					deck[currentcard].PrintCard();

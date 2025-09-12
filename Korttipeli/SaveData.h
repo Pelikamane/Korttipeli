@@ -13,6 +13,11 @@ struct SaveDataBlackjack
 	int totalgames_ = 0, wins_ = 0, draws_ = 0, blackjacks_ = 0;
 };
 
+struct Money
+{
+	int money_ = 0, highscore_ = 0, biggestbet_ = 0;
+};
+
 class SaveManager
 {
 public:
@@ -20,6 +25,8 @@ public:
 	bool LoadPokerData(SaveDataPoker&);
 	bool SaveBlackjackData(const SaveDataBlackjack&);
 	bool LoadBlackjackData(SaveDataBlackjack&);
+	bool SaveMoneyData(const Money&);
+	bool LoadMoneyData(Money&);
 	void PokerDataToStruct(SaveDataPoker&, const int&);
 	void ClearPokerSaveData() const;
 	void ClearBlackjackSaveData() const;
@@ -27,6 +34,7 @@ public:
 private:
 	std::string pokersavelocation_ = "PokerData.txt";
 	std::string blackjacksavelocation_ = "BlackjackData.txt";
+	std::string moneysavelocation_ = "MoneyData.txt";
 };
 
 #endif //!SAVEDATA_H

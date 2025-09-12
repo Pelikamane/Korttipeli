@@ -9,9 +9,9 @@
 #include "Deck.h"
 #include "HandEvaluator.h"
 
+//Add money system, holdem and normal blackjack 
 //Add clutch rounds to poker: 10 rounds, player = 2 and dealer = 7 (consecutive wins allow you to go to overtime and possibly win the game) <-- choice included when it happens
-//Blackjack: fix dealer hitting at 21.
-//Poker: Says "draw" at the end of 1 round long game (player lost)
+//Blackjack: fix dealer hitting at 21. (might work now)
 
 int main()
 {
