@@ -3,6 +3,13 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+#User-specific saves
+PokerData.txt
+BlackjackData.txt
+MoneyData.txt
+SettingData.txt
+
+
 # User-specific files
 *.rsuser
 *.suo

@@ -12,21 +12,23 @@
 
 void GameManager::Run()
 {
-	float programversion = 1.01;
+	float programversion = 1.02;
 	int choice = 0;
 	Player player;
 	Dealer dealer;
 	SaveManager savemanager;
 	SaveDataPoker pokersave;
 	SaveDataBlackjack blackjacksave;
-	
+	SaveDataMoney moneysave;
+	Settings settings;
 
-	while (choice != 7)
+	while (choice != 8)
 	{
 		bool ispokerfilevalid = savemanager.LoadPokerData(pokersave);
 		bool isblackjackfilevalid = savemanager.LoadBlackjackData(blackjacksave);
+		bool settingsloaded = savemanager.LoadSettingData(settings);
 		std::cout << "\n\033[4m\033[33mCARD GAMES in C++\033[0m\tversion " << programversion << "\nby \033[36mOtso\033[0m\n\n";
-		std::cout << "1. Blackjack\n2. Poker hands\n3. Statistics\n4. Game rules\n5. Dev notes\n6. Save manager\n7. Quit\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Statistics\n4. Settings\n5. Game rules\n6. Dev notes\n7. Save manager\n8. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -55,23 +57,28 @@ void GameManager::Run()
 			{
 				ShowStats(savemanager, pokersave, blackjacksave);
 				break;
-			}	
+			}
 			case 4:
 			{
-				ShowRules();
+				ShowSettings(savemanager, settings);
 				break;
 			}
 			case 5:
 			{
-				DevNotes();
+				ShowRules();
 				break;
 			}
 			case 6:
 			{
-				SaveManagement(savemanager);
+				DevNotes();
 				break;
 			}
 			case 7:
+			{
+				SaveManagement(savemanager);
+				break;
+			}
+			case 8:
 				std::cout << "Goodbye!\n";
 				break;
 
@@ -81,6 +88,66 @@ void GameManager::Run()
 				break;
 			}
 			}
+		}
+	}
+}
+
+void GameManager::ShowSettings(SaveManager& savemanager, Settings& settings)
+{
+	bool showsettings = true;
+	std::string moneylabel;
+	int settinginput;
+	
+	while (showsettings)
+	{
+		std::cout << "money: " << settings.moneysystem;
+		if (!settings.moneysystem)
+		{
+			moneylabel = "\033[31mFALSE\033[0m";
+		}
+		else
+		{
+			moneylabel = "\033[32mTRUE\033[0m";
+		}
+		std::cout << "\n1. Money system: " << moneylabel << "\n2. Quit";
+		while (true)
+		{
+			std::cout << "\nSetting to change: ";
+			std::cin >> settinginput;
+			if (!std::cin.good())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Wrong input!\n\n";
+			}
+			switch (settinginput)
+			{
+			case 1:
+			{
+				if (settings.moneysystem)
+				{
+					settings.moneysystem = false;
+					break;
+				}
+				else
+				{
+					settings.moneysystem = true;
+					break;
+				}
+			}
+			case 2:
+			{
+				savemanager.SaveSettingData(settings);
+				showsettings = false;
+				break;
+			}
+			default:
+			{
+				std::cout << "Default case, something went wrong";
+				break;
+			}
+			}
+			break;
 		}
 	}
 }
@@ -171,6 +238,8 @@ void GameManager::DevNotes()
 	{
 		std::cout << "\n\033[4m7.8.2025\033[0m First build version of this program (v1.01) Has some issues with blackjack scoring (dealer hits at 21) "
 			"and some small spacing problems. Will be fixed in future versions along with more card games.\n\n";
+		std::cout << "\033[4m28.3.2026\033[0m Second build version of this program (v.1.02) Has some fixes to faulty game logic. "
+			"Added some color to the program, a settings page and save files!\n\n";
 		while (true)
 		{
 			std::cout << "Input any number to go back to menu: ";

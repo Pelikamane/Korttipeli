@@ -55,6 +55,7 @@ bool SaveManager::LoadPokerData(SaveDataPoker& savedata)
 		//std::cout << "Data is fetched\n";
 		return true;
 	}
+	return false;
 }
 
 bool SaveManager::SaveBlackjackData(const SaveDataBlackjack& savedata)
@@ -93,15 +94,17 @@ bool SaveManager::LoadBlackjackData(SaveDataBlackjack& savedata)
 			savedata.totalgames_ = 0, savedata.wins_ = 0, savedata.draws_ = 0, savedata.blackjacks_ = 0;
 			return false;
 		}
+		readdata.seekg(0, std::ios::beg);
 		//std::cout << "\nblackjack file is not empty.\n";
 		readdata >> savedata.totalgames_ >> savedata.wins_ >> savedata.draws_ >> savedata.blackjacks_;
 		readdata.close();
 		//std::cout << "Blackjack data is fetched\n";
 		return true;
 	}
+	return false;
 }
 
-bool SaveManager::SaveMoneyData(const Money& playermoney)
+bool SaveManager::SaveMoneyData(const SaveDataMoney& playermoney)
 {
 	std::fstream writedata(moneysavelocation_, std::ios::out);
 	if (!writedata.is_open())
@@ -117,7 +120,7 @@ bool SaveManager::SaveMoneyData(const Money& playermoney)
 	return true;
 }
 
-bool SaveManager::LoadMoneyData(Money& playermoney)
+bool SaveManager::LoadMoneyData(SaveDataMoney& playermoney)
 {
 	std::fstream readdata(moneysavelocation_, std::ios::in);
 	if (!readdata.is_open())
@@ -137,10 +140,56 @@ bool SaveManager::LoadMoneyData(Money& playermoney)
 			playermoney.money_ = 1000, playermoney.highscore_ = 0, playermoney.biggestbet_ = 0;
 			return false;
 		}
+		readdata.seekg(0, std::ios::beg);
 		readdata >> playermoney.money_ >> playermoney.highscore_ >> playermoney.biggestbet_;
 		readdata.close();
 		return true;
 	}
+	return false;
+}
+
+bool SaveManager::SaveSettingData(const Settings& settings)
+{
+	std::fstream writedata(settingsavelocation_, std::ios::out | std::ios::trunc);
+	if (!writedata.is_open())
+	{
+		std::cout << "Error: settings save doesn't exist\n";
+		return false;
+	}
+	else
+	{
+		writedata << std::boolalpha << settings.moneysystem;
+		writedata.close();
+	}
+	return true;
+}
+
+bool SaveManager::LoadSettingData(Settings& settings)
+{
+	std::fstream readdata(settingsavelocation_, std::ios::in);
+	if (!readdata.is_open())
+	{
+		std::cout << "Settings data doesn't exist, creating one\n";
+		std::fstream createsave(settingsavelocation_, std::ios::out);
+		createsave.close();
+	}
+	else if (readdata.is_open())
+	{
+		//std::cout << "\Settings save opened";
+		readdata.seekg(0, std::ios::end);
+		if (readdata.tellg() == 0)
+		{
+			std::cout << "Settings file empty\n";
+			settings.moneysystem = false;
+			readdata.close();
+			return false;
+		}
+		readdata.seekg(0, std::ios::beg);
+		readdata >> std::boolalpha >> settings.moneysystem;
+		readdata.close();
+		return true;
+	}
+	return false;
 }
 
 void SaveManager::PokerDataToStruct(SaveDataPoker& pokersave, const int& handtype)
