@@ -3,13 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-#User-specific saves
-PokerData.txt
-BlackjackData.txt
-MoneyData.txt
-SettingData.txt
-
-
 # User-specific files
 *.rsuser
 *.suo
@@ -368,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+#User-specific saves
+/Korttipeli/BlackjackData.txt
+/Korttipeli/PokerData.txt
+/Korttipeli/BlackjackData.txt
+/Korttipeli/MoneyData.txt
+SettingData.txt
+/Korttipeli/PokerData.txt
