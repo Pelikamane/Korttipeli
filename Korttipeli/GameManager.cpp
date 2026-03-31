@@ -26,9 +26,10 @@ void GameManager::Run()
 	{
 		bool ispokerfilevalid = savemanager.LoadPokerData(pokersave);
 		bool isblackjackfilevalid = savemanager.LoadBlackjackData(blackjacksave);
+		bool ismoneysavevalid = savemanager.LoadMoneyData(moneysave);
 		bool settingsloaded = savemanager.LoadSettingData(settings);
-		std::cout << "\n\033[4m\033[33mCARD GAMES in C++\033[0m\tversion " << programversion << "\nby \033[36mOtso\033[0m\n\n";
-		std::cout << "1. Blackjack\n2. Poker hands\n3. Statistics\n4. Settings\n5. Game rules\n6. Dev notes\n7. Save manager\n8. Quit\n\n";
+		std::cout << "\n\033[4m\033[33mCARD GAMES in C++\033[0m\tversion " << programversion << "\nby \033[36mMeme man\033[0m\n\n";
+		std::cout << "1. Blackjack\n2. Poker hands\n3. Statistics\n4. Settings\n5. Game rules\n6. Notes\n7. Save manager\n8. Quit\n\n";
 		std::cout << "What do you want to do: ";
 		std::cin >> choice;
 		if (std::cin.fail())
@@ -44,13 +45,13 @@ void GameManager::Run()
 			{
 			case 1:
 			{
-				BlackJack(player, dealer, blackjacksave, savemanager);
+				BlackJack(player, dealer, blackjacksave, moneysave, savemanager, settings);
 				break;
 			}
 
 			case 2:
 			{
-				Poker(player, dealer, pokersave, savemanager);
+				Poker(player, dealer, pokersave, moneysave, savemanager, settings);
 				break;
 			}
 			case 3:
@@ -100,7 +101,6 @@ void GameManager::ShowSettings(SaveManager& savemanager, Settings& settings)
 	
 	while (showsettings)
 	{
-		std::cout << "money: " << settings.moneysystem;
 		if (!settings.moneysystem)
 		{
 			moneylabel = "\033[31mFALSE\033[0m";
@@ -389,7 +389,7 @@ void GameManager::SaveManagement(SaveManager& savemanager)
 	}
 }
 
-void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& savedata, SaveManager& savemanager)
+void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& savedata, SaveDataMoney& moneysave, SaveManager& savemanager, Settings& settings)
 {
 	bool gameloop = true;
 	Deck deck;
@@ -675,11 +675,11 @@ void GameManager::BlackJack(Player& player, Dealer& dealer, SaveDataBlackjack& s
 	}
 }
 
-void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave, SaveManager& savemanager)
+void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave, SaveDataMoney& moneysave, SaveManager& savemanager, Settings& settings)
 {
 	std::vector<Card> dealercards, playercards;
 	bool selectionloop = true, gameover = false;
-	unsigned int maxrounds = 0, roundcounter = 1, jokeramount = 0, maxswaps = 0,
+	unsigned int maxrounds = 0, roundcounter = 1, jokeramount = 0, bet = 0, maxswaps = 0,
 		dealerhandvalue = 0, playerhandvalue = 0, gameoverchoice = 0;
 	Deck pokerdeck;
 	HandEvaluator evaluator(pokerdeck);
@@ -802,6 +802,10 @@ void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave
 		}
 		std::cout << "Round " << roundcounter << "/" << maxrounds << " starting now!\n";
 		pokerdeck.ShuffleDeck();
+		if (settings.moneysystem)
+		{
+			bet = moneysave.SetBet();
+		}
 		if (maxswaps != 0)
 		{
 			std::cout << "\nDealer's cards:\n";
@@ -996,10 +1000,14 @@ void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave
 			if (playerwin == 0)
 			{
 				dealer.dealerpokerwins_++;
+				std::cout << "Money: " << "-" << bet << "\n";
+				moneysave.money_ -= bet;
 			}
 			else if (playerwin == 1)
 			{
 				player.playerpokerwins_++;
+				std::cout << "Money: " << "+" << bet << "\n";
+				moneysave.money_ += bet;
 			}
 		}
 		else if (playerhandvalue > dealerhandvalue)
@@ -1007,12 +1015,16 @@ void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave
 			std::cout << "\n\033[4m\033[32mYou win\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) <<
 				" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
 			player.playerpokerwins_++;
+			std::cout << "Money: " << "+" << bet << "\n";
+			moneysave.money_ += bet;
 		}
 		else
 		{
 			std::cout << "\n\033[4m\033[31mYou lost\033[0m with " << evaluator.TypeToString(playerhandvalue, scoringstring) <<
 				" against dealer's " << evaluator.TypeToString(dealerhandvalue, scoringstring) << "\n";
 			dealer.dealerpokerwins_++;
+			std::cout << "Money: " << "-" << bet << "\n";
+			moneysave.money_ -= bet;
 		}
 		std::cout << "\nGame score:\n\033[32mYou:\033[0m " << player.playerpokerwins_ << "\n\033[31mDealer:\033[0m " <<
 			dealer.dealerpokerwins_ << "\n\n";
@@ -1046,6 +1058,7 @@ void GameManager::Poker(Player& player, Dealer& dealer, SaveDataPoker& pokersave
 				}
 				pokersave.totalgames_++;
 				savemanager.SavePokerData(pokersave);
+				savemanager.SaveMoneyData(moneysave);
 				while (true)
 				{
 					std::cout << "\n1.Play again\n2.Main menu\nWhat would you like to do: ";

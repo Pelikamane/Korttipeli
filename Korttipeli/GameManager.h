@@ -7,6 +7,7 @@ class Dealer;
 class SaveManager;
 struct SaveDataPoker;
 struct SaveDataBlackjack;
+struct SaveDataMoney;
 struct Settings;
 
 class GameManager
@@ -22,8 +23,8 @@ public:
 	void ShowSettings(SaveManager&, Settings&);
 	void DevNotes();
 	void SaveManagement(SaveManager&);
-	void BlackJack(Player&, Dealer&, SaveDataBlackjack&, SaveManager&);
-	void Poker(Player&, Dealer&, SaveDataPoker&, SaveManager&);
+	void BlackJack(Player&, Dealer&, SaveDataBlackjack&, SaveDataMoney&, SaveManager&, Settings&);
+	void Poker(Player&, Dealer&, SaveDataPoker&, SaveDataMoney&, SaveManager&, Settings&);
 private:
 };
 

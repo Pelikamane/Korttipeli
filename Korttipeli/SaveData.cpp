@@ -137,7 +137,7 @@ bool SaveManager::LoadMoneyData(SaveDataMoney& playermoney)
 		{
 			std::cout << "Money file empty\n";
 			readdata.close();
-			playermoney.money_ = 1000, playermoney.highscore_ = 0, playermoney.biggestbet_ = 0;
+			playermoney.money_ = 100, playermoney.highscore_ = 0, playermoney.biggestbet_ = 0;
 			return false;
 		}
 		readdata.seekg(0, std::ios::beg);

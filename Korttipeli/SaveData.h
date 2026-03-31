@@ -2,6 +2,7 @@
 #define SAVEDATA_H
 
 #include <string>
+#include <iostream>
 
 struct SaveDataPoker
 {
@@ -15,7 +16,30 @@ struct SaveDataBlackjack
 
 struct SaveDataMoney
 {
-	int money_ = 0, highscore_ = 0, biggestbet_ = 0;
+	int money_ = 0, highscore_ = 0, lowscore = 0, biggestbet_ = 0;
+
+	int SetBet() const
+	{
+		unsigned int bet;
+		while (true)
+		{
+			std::cout << "\n\033[32mMoney:\033[0m " << money_ << "\n" << "Select your bet: ";
+			std::cin >> bet;
+			if (!std::cin.good())
+			{
+				std::cin.clear();
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cout << "Wrong input\n\n";
+				continue;
+			}
+			else
+			{
+				std::cout << "Your bet is: " << bet << "\n\n";
+			}
+			break;
+		}
+		return bet;
+	}
 };
 
 struct Settings
