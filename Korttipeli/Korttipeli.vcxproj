@@ -142,10 +142,6 @@
     <ClInclude Include="Player.h" />
     <ClInclude Include="SaveData.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="BlackjackData.txt" />
-    <Text Include="PokerData.txt" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

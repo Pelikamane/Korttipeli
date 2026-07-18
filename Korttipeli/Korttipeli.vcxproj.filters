@@ -57,12 +57,4 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="PokerData.txt">
-      <Filter>Data Files</Filter>
-    </Text>
-    <Text Include="BlackjackData.txt">
-      <Filter>Data Files</Filter>
-    </Text>
-  </ItemGroup>
 </Project>

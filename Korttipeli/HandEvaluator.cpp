@@ -627,5 +627,7 @@ int HandEvaluator::TieBreaker(int handtype, std::vector<Card>& playercards, std:
 	}
 	default:
 		std::cout << "Error in tiebreaker, unknown handtype\n";
+		break;
 	}
+	return NULL;
 }
